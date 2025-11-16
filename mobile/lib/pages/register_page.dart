@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/components/button.dart';    
-import 'package:mobile/components/text_field.dart'; 
+import 'package:mobile/components/button.dart';
+import 'package:mobile/components/text_field.dart';
+import 'package:mobile/services/api_client.dart';
+import 'package:mobile/services/session.dart';
+import 'package:mobile/pages/home_page.dart';
+
 class RegisterPage extends StatefulWidget {
   final Function()? onTap;
   const RegisterPage({super.key, required this.onTap});
@@ -10,144 +14,137 @@ class RegisterPage extends StatefulWidget {
 }
 
 class _RegisterPageState extends State<RegisterPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final confirmPasswordController = TextEditingController();
+  final fullNameController = TextEditingController();
+  final companyNameController = TextEditingController();
 
-  final emailTextController = TextEditingController();
-  final passwordTextController = TextEditingController();
-  final confirmPasswordTextController = TextEditingController();
+  bool _isSupplier = true;
+  bool _isLoading = false;
+  String? _error;
 
-  
-  void signUp() {
-    if (passwordTextController.text != confirmPasswordTextController.text) {
-      displayMessage("Passwords don't match!");
+  Future<void> _register() async {
+    if (passwordController.text != confirmPasswordController.text) {
+      setState(() {
+        _error = 'Passwords do not match';
+      });
       return;
     }
 
-    print('Sign Up button tapped!');
-    print('Attempting to register with email: ${emailTextController.text}');
-
-    // ===================================================================
-    // SUPABASE DATABASE LOGIC HERE
-    // ===================================================================
-    /*
-    // Show loading circle
-    showDialog(
-      context: context,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
-      // Try to create the user with Supabase
-      await supabase.auth.signUp(
-        email: emailTextController.text,
-        password: passwordTextController.text,
+      final api = ApiClient.instance;
+      final result = _isSupplier
+          ? await api.registerSupplier(
+              email: emailController.text.trim(),
+              password: passwordController.text,
+              fullName: fullNameController.text.trim(),
+              supplierName: companyNameController.text.trim(),
+            )
+          : await api.registerConsumer(
+              email: emailController.text.trim(),
+              password: passwordController.text,
+              fullName: fullNameController.text.trim(),
+              consumerName: companyNameController.text.trim(),
+            );
+
+      await SessionService.instance.saveLogin(result);
+
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomePage()),
       );
-
-      // Pop loading circle if sign-up is successful
-      if (context.mounted) Navigator.pop(context);
-
     } catch (e) {
-      // Pop loading circle
-      if (context.mounted) Navigator.pop(context);
-
-      // Display error message
-      if (context.mounted) {
-        displayMessage(e.toString());
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
-    */
-  }
-
-  
-  void displayMessage(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(message),
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[300],
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25.0),
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(
-                    Icons.lock,
-                    size: 100,
+      body: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              ToggleButtons(
+                isSelected: [_isSupplier, !_isSupplier],
+                onPressed: (index) {
+                  setState(() {
+                    _isSupplier = index == 0;
+                  });
+                },
+                children: const [
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Supplier'),
                   ),
-                  const SizedBox(height: 50),
-                  Text(
-                    'Let\'s create an account for you',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 25),
-
-                  
-                  MyTextField(
-                    controller: emailTextController,
-                    hintText: 'Email',
-                    obscureText: false,
-                  ),
-                  const SizedBox(height: 10),
-
-                  
-                  MyTextField(
-                    controller: passwordTextController,
-                    hintText: 'Password',
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 10),
-
-                  
-                  MyTextField(
-                    controller: confirmPasswordTextController,
-                    hintText: 'Confirm password',
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 25),
-
-                  
-                  MyButton(
-                    onTap: signUp,
-                    text: 'Sign Up',
-                  ),
-                  const SizedBox(height: 15),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Already have an account?",
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: widget.onTap,
-                        child: const Text(
-                          "Login here",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('Consumer'),
                   ),
                 ],
               ),
-            ),
+              const SizedBox(height: 16),
+              MyTextField(
+                controller: fullNameController,
+                hintText: 'Full name',
+                obscureText: false,
+              ),
+              MyTextField(
+                controller: companyNameController,
+                hintText: _isSupplier ? 'Supplier name' : 'Consumer name',
+                obscureText: false,
+              ),
+              MyTextField(
+                controller: emailController,
+                hintText: 'Email',
+                obscureText: false,
+              ),
+              MyTextField(
+                controller: passwordController,
+                hintText: 'Password',
+                obscureText: true,
+              ),
+              MyTextField(
+                controller: confirmPasswordController,
+                hintText: 'Confirm password',
+                obscureText: true,
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                ),
+              const SizedBox(height: 16),
+              MyButton(
+                text: _isLoading ? 'Loading...' : 'Register',
+                onTap: _isLoading ? null : _register,
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: widget.onTap,
+                child: const Text(
+                  'Already have an account? Login',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
