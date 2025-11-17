@@ -13,12 +13,16 @@ from .models import (
     SupplierStaffRoles,
     SupplierStaff,
     ConsumerUsers,
+    SupplierConsumerLinks, 
 )
 from .serializers import (
     ProductSerializer,
     SupplierRegisterSerializer,
     ConsumerRegisterSerializer,
     LoginSerializer,
+    LinkRequestCreateSerializer,      
+    ConsumerLinkSerializer,     
+    SupplierIncomingLinkSerializer,
 )
 
 
@@ -201,3 +205,141 @@ class LoginView(APIView):
                 "login_as": effective_role,
             }
         )
+class LinkRequestCreateView(APIView):
+    """
+    POST /api/links/request/
+
+    Создаёт (или переоткрывает) link consumer -> supplier
+    со статусом 'pending'.
+    """
+
+    def post(self, request):
+        serializer = LinkRequestCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        consumer_id = data["consumer_id"]
+        supplier_id = data["supplier_id"]
+
+        # проверим, что такие supplier/consumer вообще есть
+        try:
+            supplier = Suppliers.objects.get(id=supplier_id, is_active=True)
+        except Suppliers.DoesNotExist:
+            return Response(
+                {"detail": "Supplier not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            consumer = Consumers.objects.get(id=consumer_id, is_active=True)
+        except Consumers.DoesNotExist:
+            return Response(
+                {"detail": "Consumer not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        link, created = SupplierConsumerLinks.objects.get_or_create(
+            supplier=supplier,
+            consumer=consumer,
+            defaults={
+                "status": "pending",
+                "created_at": timezone.now(),
+            },
+        )
+
+        # если линк уже был, но, например, был отклонён/заблокирован — можно переоткрыть
+        if not created and link.status in ["rejected", "blocked"]:
+            link.status = "pending"
+            link.created_at = timezone.now()
+            link.save(update_fields=["status", "created_at"])
+
+        out = ConsumerLinkSerializer(link)
+        return Response(
+            out.data,
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+
+class ConsumerLinksListView(APIView):
+    """
+    GET /api/links/consumer/<consumer_id>/
+
+    Список всех линков для данного consumer'а.
+    """
+
+    def get(self, request, consumer_id: int):
+        links = SupplierConsumerLinks.objects.filter(
+            consumer_id=consumer_id
+        ).order_by("-created_at")
+        out = ConsumerLinkSerializer(links, many=True)
+        return Response(out.data)
+
+
+class SupplierIncomingLinksView(APIView):
+    """
+    GET /api/links/supplier/<supplier_id>/
+
+    Список запросов для supplier'а (и уже принятые тоже, если нужно).
+    """
+
+    def get(self, request, supplier_id: int):
+        links = SupplierConsumerLinks.objects.filter(
+            supplier_id=supplier_id
+        ).order_by("-created_at")
+        out = SupplierIncomingLinkSerializer(links, many=True)
+        return Response(out.data)
+
+
+class LinkApproveView(APIView):
+    """
+    POST /api/links/<id>/approve/
+
+    Подтверждение link request со стороны supplier'а.
+    """
+
+    def post(self, request, pk: int):
+        try:
+            link = SupplierConsumerLinks.objects.get(pk=pk)
+        except SupplierConsumerLinks.DoesNotExist:
+            return Response(
+                {"detail": "Link not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        link.status = "accepted"
+        link.save(update_fields=["status"])
+        return Response({"detail": "approved"})
+
+
+
+class LinkRejectView(APIView):
+    """
+    POST /api/links/<id>/reject/
+
+    Для новых запросов = "заблокировать" (blocked),
+    чтобы потребитель не мог ещё раз заспамить запросами.
+    """
+
+    def post(self, request, pk: int):
+        try:
+            link = SupplierConsumerLinks.objects.get(pk=pk)
+        except SupplierConsumerLinks.DoesNotExist:
+            return Response(
+                {"detail": "Link not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        try:
+            if link.status == "pending":
+                link.status = "blocked"
+            else:
+                link.status = "removed"
+
+            link.save(update_fields=["status"])
+        except DataError as e:
+            return Response(
+                {"detail": str(e)},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response({"detail": "blocked"}, status=status.HTTP_200_OK)
