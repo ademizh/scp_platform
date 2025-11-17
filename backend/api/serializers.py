@@ -7,6 +7,7 @@ from .models import (
     SupplierStaff,
     ConsumerUsers,
     Products,
+    SupplierConsumerLinks, 
 )
 
 class ProductSerializer(serializers.ModelSerializer):
@@ -47,3 +48,31 @@ class LoginSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+class LinkRequestCreateSerializer(serializers.Serializer):
+    
+    consumer_id = serializers.IntegerField()
+    supplier_id = serializers.IntegerField()
+
+
+class ConsumerLinkSerializer(serializers.ModelSerializer):
+    """
+    То, что отдаём во Flutter для consumer'а:
+    id, supplier_id, supplier_name, status.
+    """
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+
+    class Meta:
+        model = SupplierConsumerLinks
+        fields = ["id", "supplier_id", "supplier_name", "status"]
+
+
+class SupplierIncomingLinkSerializer(serializers.ModelSerializer):
+    """
+    То, что отдаём во Flutter для supplier'а:
+    id, consumer_id, consumer_name, status.
+    """
+    consumer_name = serializers.CharField(source="consumer.name", read_only=True)
+
+    class Meta:
+        model = SupplierConsumerLinks
+        fields = ["id", "consumer_id", "consumer_name", "status"]
