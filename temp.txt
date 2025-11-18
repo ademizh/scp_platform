@@ -1,0 +1,122 @@
+import 'package:flutter/material.dart';
+import 'package:mobile/components/button.dart';
+import 'package:mobile/components/text_field.dart';
+import 'package:mobile/services/api_client.dart';
+import 'package:mobile/services/session.dart';
+import 'package:mobile/pages/home_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+class LoginPage extends StatefulWidget {
+  final Function()? onTap;
+  const LoginPage({super.key, required this.onTap});
+
+  @override
+  State<LoginPage> createState() => _LoginPageState();
+}
+
+class _LoginPageState extends State<LoginPage> {
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  bool _isLoading = false;
+  String? _error;
+
+Future<void> _login() async {
+  setState(() {
+    _isLoading = true;
+    _error = null;
+  });
+
+  try {
+    final result = await ApiClient.instance.login(
+      emailController.text.trim(),
+      passwordController.text,
+    );
+
+    // твоя старая логика — пусть остаётся
+    await SessionService.instance.saveLogin(result);
+
+    // ДОБАВЛЯЕМ сохранение роли
+    final prefs = await SharedPreferences.getInstance();
+
+    String? role;
+
+    // предполагаем, что бэк возвращает roles: ["supplier"] / ["consumer"]
+    if (result['roles'] is List) {
+      final roles =
+          (result['roles'] as List).map((e) => e.toString().toLowerCase()).toList();
+
+      if (roles.contains('supplier')) {
+        role = 'supplier';
+      } else if (roles.contains('consumer')) {
+        role = 'consumer';
+      }
+    }
+
+    // если вдруг roles нет, можно по умолчанию считать consumer
+    role ??= 'consumer';
+
+    await prefs.setString('role', role);
+    await prefs.setBool('isLoggedIn', true);
+
+    if (!mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(builder: (_) => const HomePage()),
+    );
+  } catch (e) {
+    setState(() {
+      _error = e.toString();
+    });
+  } finally {
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+}
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: Center(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              MyTextField(
+                controller: emailController,
+                hintText: 'Email',
+                obscureText: false,
+              ),
+              MyTextField(
+                controller: passwordController,
+                hintText: 'Password',
+                obscureText: true,
+              ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                ),
+              const SizedBox(height: 16),
+              MyButton(
+                text: _isLoading ? 'Loading...' : 'Login',
+                onTap: _isLoading ? null : _login,
+              ),
+              const SizedBox(height: 8),
+              GestureDetector(
+                onTap: widget.onTap,
+                child: const Text(
+                  'New here? Register',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

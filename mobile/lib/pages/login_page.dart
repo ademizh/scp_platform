@@ -1,6 +1,12 @@
+﻿
 import 'package:flutter/material.dart';
-import 'package:mobile/components/button.dart';       
+import 'package:mobile/components/button.dart';
 import 'package:mobile/components/text_field.dart';
+import 'package:mobile/services/api_client.dart';
+import 'package:mobile/services/session.dart';
+import 'package:mobile/pages/home_page.dart';
+import 'package:mobile/pages/register_page.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginPage extends StatefulWidget {
   final Function()? onTap;
@@ -11,126 +17,147 @@ class LoginPage extends StatefulWidget {
 }
 
 class _LoginPageState extends State<LoginPage> {
-  final emailTextController = TextEditingController();
-  final passwordTextController = TextEditingController();
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
 
+  bool _isLoading = false;
+  String? _error;
 
-  void signIn() {
-    print('Sign In button tapped!');
-    print('Email: ${emailTextController.text}');
-    print('Password: ${passwordTextController.text}');
+  // true = supplier, false = consumer
+  bool _isSupplier = true;
 
-    // ===================================================================
-    // SUPABASE DATABASE LOGIC HERE
-    // ===================================================================
-    /*
-    // Show loading circle
-    showDialog(
-      context: context,
-      builder: (context) => const Center(child: CircularProgressIndicator()),
-    );
+  Future<void> _login() async {
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
 
     try {
-      // Try to sign in with Supabase
-      await supabase.auth.signInWithPassword(
-        email: emailTextController.text,
-        password: passwordTextController.text,
+      final loginAs = _isSupplier ? 'supplier' : 'consumer';
+
+      
+      final result = await ApiClient.instance.login(
+        emailController.text.trim(),
+        passwordController.text,
+        loginAs: loginAs, 
       );
 
-      // Pop loading circle if sign-in is successful
-      if (context.mounted) Navigator.pop(context);
+      
+      await SessionService.instance.saveLogin(result);
 
+      
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('role', loginAs);
+      await prefs.setBool('isLoggedIn', true);
+
+      
+      if (!mounted) return;
+      Navigator.of(context).pushReplacement(
+        MaterialPageRoute(builder: (_) => const HomePage()),
+      );
     } catch (e) {
-      // Pop loading circle
-      if (context.mounted) Navigator.pop(context);
-
-      // Display error message
-      if (context.mounted) {
-        showDialog(
-          context: context,
-          builder: (context) => AlertDialog(
-            title: const Text('Sign-In Failed'),
-            content: Text(e.toString()),
-          ),
-        );
+      setState(() {
+        _error = e.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
       }
     }
-    */
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[300],
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 25.0),
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              MyTextField(
+                controller: emailController,
+                hintText: 'Email',
+                obscureText: false,
+              ),
+              const SizedBox(height: 12),
+              MyTextField(
+                controller: passwordController,
+                hintText: 'Password',
+                obscureText: true,
+              ),
+              const SizedBox(height: 16),
+
+              
+              Row(
                 children: [
-                  const Icon(
-                    Icons.lock,
-                    size: 100,
-                  ),
-                  const SizedBox(height: 50),
-                  Text(
-                    'Welcome back, you’ve been missed!',
-                    style: TextStyle(
-                      color: Colors.grey[700],
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+                  Expanded(
+                    child: RadioListTile<bool>(
+                      title: const Text('Supplier'),
+                      value: true,
+                      groupValue: _isSupplier,
+                      onChanged: (v) {
+                        setState(() {
+                          _isSupplier = v ?? true;
+                        });
+                      },
                     ),
                   ),
-                  const SizedBox(height: 25),
-
-                  
-                  MyTextField(
-                    controller: emailTextController,
-                    hintText: 'Email',
-                    obscureText: false,
-                  ),
-                  const SizedBox(height: 10),
-
-                  
-                  MyTextField(
-                    controller: passwordTextController,
-                    hintText: 'Password',
-                    obscureText: true,
-                  ),
-                  const SizedBox(height: 25),
-
-                  
-                  MyButton(
-                    onTap: signIn,
-                    text: 'Sign In',
-                  ),
-                  const SizedBox(height: 15),
-
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        "Not a member?",
-                        style: TextStyle(color: Colors.grey[700]),
-                      ),
-                      const SizedBox(width: 4),
-                      GestureDetector(
-                        onTap: widget.onTap,
-                        child: const Text(
-                          "Register now",
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.green,
-                          ),
-                        ),
-                      ),
-                    ],
+                  Expanded(
+                    child: RadioListTile<bool>(
+                      title: const Text('Consumer'),
+                      value: false,
+                      groupValue: _isSupplier,
+                      onChanged: (v) {
+                        setState(() {
+                          _isSupplier = v ?? false;
+                        });
+                      },
+                    ),
                   ),
                 ],
               ),
-            ),
+
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
+                ),
+
+              const SizedBox(height: 16),
+              MyButton(
+                text: _isLoading ? 'Loading...' : 'Login',
+                onTap: _isLoading ? null : _login,
+              ),
+              const SizedBox(height: 8),
+
+              
+              GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => RegisterPage(
+                        onTap: () {
+                          Navigator.of(context).pop();
+                        },
+                      ),
+                    ),
+                  );
+                },
+                child: const Text(
+                  'New here? Register',
+                  style: TextStyle(
+                    color: Colors.blue,
+                    decoration: TextDecoration.underline,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
       ),
