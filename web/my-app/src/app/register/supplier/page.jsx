@@ -3,35 +3,35 @@
 import React, { useState } from 'react';
 import { UserPlus, Loader, Building2 } from "lucide-react";
 
+// Base URL of your Django backend – same as in Flutter ApiClient
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || 'http://127.0.0.1:8000';
+
 const RegistrationForm = ({ formData, manageChange, manageRegistrationSubmit, loading }) => (
 
     <form onSubmit={manageRegistrationSubmit}>
-        {/* Conditional Error Message */}
-        {/* {error && (
-            <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded mb-4" role="alert">
-                <p className="font-semibold">Registration Error</p>
-                <p className="text-sm">{error}</p>
-            </div>
-        )} */}
-
         {/* Supplier Name */}
         <div className="mb-4">
             <label htmlFor="supplierName" className="block font-medium text-gray-700 mb-1">
-                Supplier Name
+                Supplier/Company Name
             </label>
-            <input
-                id="supplierName"
-                type="text"
-                className="w-full border border-gray-300 rounded-lg p-2 text-gray-900"
-                onChange={manageChange}
-                value={formData.supplierName}
-            />
+            <div className="flex items-center border border-gray-300 rounded-lg px-3 py-2">
+                <Building2 className="text-gray-400 mr-2" />
+                <input
+                    id="supplierName"
+                    type="text"
+                    className="w-full outline-none text-gray-900"
+                    onChange={manageChange}
+                    value={formData.supplierName}
+                    placeholder="Example: Fresh Foods Ltd."
+                    required
+                />
+            </div>
         </div>
 
         {/* Email */}
         <div className="mb-4">
             <label htmlFor="email" className="block font-medium text-gray-700 mb-1">
-                Email Address
+                Business Email
             </label>
             <input
                 id="email"
@@ -39,6 +39,8 @@ const RegistrationForm = ({ formData, manageChange, manageRegistrationSubmit, lo
                 className="w-full border border-gray-300 rounded-lg p-2 text-gray-900"
                 onChange={manageChange}
                 value={formData.email}
+                placeholder="supplier@example.com"
+                required
             />
         </div>
 
@@ -74,16 +76,16 @@ const RegistrationForm = ({ formData, manageChange, manageRegistrationSubmit, lo
             />
         </div>
 
-        {/* Submission Button */}
+        {/* Submit Button */}
         <button
             type="submit"
+            className="w-full flex items-center justify-center bg-gray-700 text-white py-2 px-4 rounded-xl hover:bg-gray-500 transition duration-200"
             disabled={loading}
-            className="w-full flex items-center justify-center bg-gray-700 text-white font-bold py-3 rounded-xl hover:bg-gray-500 transition duration-200 disabled:bg-gray-300"
         >
             {loading ? (
                 <>
-                    <Loader className="animate-spin h-5 w-5 mr-3" />
-                    Processing Registration...
+                    <Loader className="h-5 w-5 mr-2 animate-spin" />
+                    Processing...
                 </>
             ) : (
                 <>
@@ -93,8 +95,6 @@ const RegistrationForm = ({ formData, manageChange, manageRegistrationSubmit, lo
             )}
         </button>
     </form>
-
-
 );
 
 const LoginForm = ({ formData, manageChange, manageLoginSubmit, loading }) => (
@@ -103,15 +103,12 @@ const LoginForm = ({ formData, manageChange, manageLoginSubmit, loading }) => (
         <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
             <div className="mt-1 relative rounded-lg shadow-sm">
-                {/* <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="h-5 w-5 text-gray-400" />
-                </div> */}
                 <input
                     type="email"
                     id="email"
                     value={formData.email}
                     onChange={manageChange}
-                    className="block w-full pl-4 pr-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                    className="block w-full pl-4 pr-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
                     placeholder="supplier@company.com"
                     required
                 />
@@ -122,41 +119,36 @@ const LoginForm = ({ formData, manageChange, manageLoginSubmit, loading }) => (
         <div>
             <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">Password</label>
             <div className="mt-1 relative rounded-lg shadow-sm">
-                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    {/* <Lock className="h-5 w-5 text-gray-400" /> */}
-                </div>
                 <input
                     type="password"
                     id="password"
                     value={formData.password}
                     onChange={manageChange}
-                    className="block w-full pl-4 pr-4 py-2 text-gray-900 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
-                    placeholder="••••••••"
+                    className="block w-full pl-4 pr-10 py-2 text-gray-900 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition duration-150"
+                    placeholder="Enter your password"
                     required
                 />
             </div>
         </div>
 
-        {/* Submission Button */}
-        <button
-            type="submit"
-            disabled={loading}
-            className="w-full flex items-center justify-center bg-green-600 text-white font-bold py-3 rounded-xl tracking-wide hover:bg-green-700 transition duration-200 disabled:bg-green-400 disabled:cursor-not-allowed shadow-lg mt-6"
-        >
-            {loading ? (
-                <>
-                    <Loader className="animate-spin h-5 w-5 mr-3" />
-                    Logging In...
-                </>
-            ) : (
-                <>
-                    {/* <LogIn className="h-5 w-5 mr-2" /> */}
-                    Log In to SCP
-                </>
-            )}
-        </button>
+        {/* Submit Button */}
+        <div className="pt-2">
+            <button
+                type="submit"
+                className="w-full inline-flex justify-center items-center px-4 py-2 border border-transparent text-sm font-medium rounded-xl shadow-sm text-white bg-gray-700 hover:bg-gray-500 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-gray-600 transition duration-150"
+                disabled={loading}
+            >
+                {loading ? (
+                    <>
+                        <Loader className="animate-spin h-5 w-5 mr-2" />
+                        Signing in...
+                    </>
+                ) : (
+                    "Sign in as Supplier"
+                )}
+            </button>
+        </div>
     </form>
-
 );
 
 const App = () => {
@@ -173,12 +165,12 @@ const App = () => {
     const [message, setMessage] = useState('');
 
     const manageChange = (e) => {
-        const { id, value } = e.target; // what triggered event
+        const { id, value } = e.target;
         setFormData(prevFormData => ({
             ...prevFormData,
             [id]: value
         }));
-        setError(null); // clear out the errors
+        setError('');
     };
 
     const verifyForm = () => {
@@ -213,7 +205,7 @@ const App = () => {
             return false;
         }
         return true;
-    }
+    };
 
     const manageRegistrationSubmit = async (e) => {
         e.preventDefault();
@@ -223,42 +215,57 @@ const App = () => {
         }
 
         setLoading(true);
-        setError(''); // clear out the errors
+        setError('');
+        setMessage('');
 
-        // simulates api use
         try {
-            await new Promise((resolve) => {
-                // const delay = Math.floor(Math.random() * 4500) + 500;
-                setTimeout(() => {
-                    resolve("Connection successful.");
-                }, 3000)
-                // setTimeout(() => {
-                //     if (delay > 3000) {
-                //         reject("Connection timeout.");
-                //     } else {
-                //         resolve("Connection successful.");
-                //     }
-                // }, delay)
-            })
-            setIsRegistered(true);
-            // console.log("Registartion successful.")
+            const response = await fetch(`${API_BASE_URL}/api/auth/register-supplier/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email.trim(),
+                    password: formData.password,
+                    // сейчас full_name = supplierName; позже можно добавить отдельное поле
+                    full_name: formData.supplierName.trim(),
+                    supplier_name: formData.supplierName.trim(),
+                }),
+            });
 
+            if (!response.ok) {
+                let detail = 'Registration failed. Please try again.';
+                try {
+                    const data = await response.json();
+                    if (data.detail) {
+                        detail = data.detail;
+                    } else if (typeof data === 'object') {
+                        detail = JSON.stringify(data);
+                    }
+                } catch { }
+                throw new Error(detail);
+            }
+
+            const data = await response.json();
+
+            // опционально сохраняем сессию
+            try {
+                localStorage.setItem('scp_user', JSON.stringify(data));
+            } catch { }
+
+            setIsRegistered(true);
             setFormData(prevFormData => ({
+                ...prevFormData,
                 supplierName: '',
-                email: prevFormData.email,
                 password: '',
                 confirmPassword: '',
             }));
 
-            setTimeout(() => {
-                setMessage("Registartion successful! You can log in.")
-                setView('login');
-            }, 2000);
-
-
-        } catch (e) {
-            console.error("Error during registration:", e);
-            setError("Registartion failed. Please try again.");
+            setMessage('Registration successful! You can log in.');
+            setView('login');
+        } catch (err) {
+            console.error('Error during registration:', err);
+            setError(err.message || 'Registration failed. Please try again.');
         } finally {
             setLoading(false);
         }
@@ -272,34 +279,51 @@ const App = () => {
         }
 
         setLoading(true);
-        setError(null);
+        setError('');
+        setMessage('');
 
         try {
-            await new Promise((resolve) => {
-                // const delay = Math.floor(Math.random() * 4500) + 500;
-                setTimeout(() => {
-                    resolve("Connection successful.")
-                }, 3000);
-                // setTimeout(() => {
-                //     if (delay > 3000) {
-                //         reject("Connection timeout.");
-                //     } else {
-                //         resolve("Connection successful.");
-                //     }
-                // }, delay)
-            })
+            const response = await fetch(`${API_BASE_URL}/api/auth/login/`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: formData.email.trim(),
+                    password: formData.password,
+                    login_as: 'supplier',
+                }),
+            });
 
-            // check if account exists, password correct
-            setMessage("Login successful!")
-            console.log("Login succesful!");
-            // go to supplier page
-        } catch (e) {
-            console.error("Error during login:", e);
-            setError("Login failed. Check your credentials.");
+            if (!response.ok) {
+                let detail = 'Login failed. Check your credentials.';
+                try {
+                    const data = await response.json();
+                    if (data.detail) {
+                        detail = data.detail;
+                    } else if (typeof data === 'object') {
+                        detail = JSON.stringify(data);
+                    }
+                } catch { }
+                throw new Error(detail);
+            }
+
+            const data = await response.json();
+
+            try {
+                localStorage.setItem('scp_user', JSON.stringify(data));
+            } catch { }
+
+            setMessage('Login successful!');
+            console.log('Login successful!', data);
+            // TODO: потом можно сделать router.push('/supplier-dashboard')
+        } catch (err) {
+            console.error('Error during login:', err);
+            setError(err.message || 'Login failed. Check your credentials.');
         } finally {
             setLoading(false);
         }
-    }
+    };
 
     if (isRegistered) {
         return (
@@ -312,8 +336,8 @@ const App = () => {
                     </p>
                     <button
                         onClick={() => {
-                            setIsRegistered(false),
-                                setView("login")
+                            setIsRegistered(false);
+                            setView('login');
                         }}
                         className="w-full bg-gray-700 text-white py-2 px-4 rounded-xl hover:bg-gray-500 transition duration-200"
                     >
@@ -324,11 +348,9 @@ const App = () => {
         );
     }
 
-
     return (
         <div className="min-h-screen bg-gray-700 flex items-center justify-center p-4 font-inter">
             <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-2xl max-w-lg w-full transform transition duration-500 hover:shadow-3xl border-t-4">
-
                 {/* Header */}
                 <div className="flex items-center space-x-3 mb-6 border-b pb-4">
                     <h1 className="text-3xl font-extrabold text-gray-900">
@@ -336,7 +358,7 @@ const App = () => {
                     </h1>
                 </div>
 
-                {/* Conditional Message Area */}
+                {/* Error */}
                 {error && (
                     <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-3 rounded-lg mb-4" role="alert">
                         <p className="font-semibold">Error</p>
@@ -344,16 +366,14 @@ const App = () => {
                     </div>
                 )}
 
-                {/* {successMessage && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-3 rounded-lg mb-4 flex items-center" role="status">
-            <CheckCircle className="h-5 w-5 mr-2 flex-shrink-0" />
-            <p className="text-sm font-medium">{successMessage}</p>
-          </div>
-        )} */}
+                {/* Success */}
+                {message && !error && (
+                    <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-3 rounded-lg mb-4" role="status">
+                        <p className="text-sm">{message}</p>
+                    </div>
+                )}
 
-
-                {/* Conditional Form Rendering */}
-                {/* Now we pass props to the stable components */}
+                {/* Forms */}
                 {view === 'register' ? (
                     <RegistrationForm
                         formData={formData}
@@ -370,38 +390,43 @@ const App = () => {
                     />
                 )}
 
-                {/* Footer Navigation*/}
-                <p className="text-center text-sm text-gray-500 mt-6 pt-4 border-t">
-                    {view === 'register' ? (
-                        <>
-                            Already have an account?
-                            <button
-                                onClick={() => { setView('login'); setFormData({ email: '', password: '' }); setError(''); }}
-                                className="font-medium text-green-600 hover:text-green-500 ml-1 transition duration-150"
-                            >
-                                Log In
-                            </button>
-                        </>
-                    ) : (
-                        <>
-                            New supplier?
-                            <button
-                                onClick={() => { setView('register'); setFormData({ email: '', password: '', supplierName: '', confirmPassword: '' }); setError(''); }}
-                                className="font-medium text-indigo-600 hover:text-indigo-500 ml-1 transition duration-150"
-                            >
-                                Register here
-                            </button>
-                        </>
-                    )}
-                </p>
+                {/* Switch link */}
+                <div className="mt-6 text-center text-sm text-gray-600">
+                    <p>
+                        {view === 'register' ? (
+                            <>
+                                Already have an account?{' '}
+                                <button
+                                    onClick={() => {
+                                        setView('login');
+                                        setError('');
+                                        setMessage('');
+                                    }}
+                                    className="text-gray-800 font-medium hover:underline"
+                                >
+                                    Login here
+                                </button>
+                            </>
+                        ) : (
+                            <>
+                                Need a supplier account?{' '}
+                                <button
+                                    onClick={() => {
+                                        setView('register');
+                                        setError('');
+                                        setMessage('');
+                                    }}
+                                    className="text-gray-800 font-medium hover:underline"
+                                >
+                                    Register here
+                                </button>
+                            </>
+                        )}
+                    </p>
+                </div>
             </div>
         </div>
     );
-
-
 };
 
-
 export default App;
-
-
