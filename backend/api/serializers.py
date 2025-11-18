@@ -7,14 +7,99 @@ from .models import (
     SupplierStaff,
     ConsumerUsers,
     Products,
-    SupplierConsumerLinks, 
+    SupplierConsumerLinks,
+    Units,
+    StockLevels,
+    Prices,
+    Orders,
+    OrderItems,
 )
 
+
+# ---------- PRODUCTS ----------
+
 class ProductSerializer(serializers.ModelSerializer):
+    """
+    DTO для каталога:
+    - unit_code: kg / liter / pack
+    - unit_name: человекочитаемое имя
+    - price: текущая цена (из Prices)
+    - stock: остаток (из StockLevels)
+    - discount / delivery_time: логические поля из SRS
+    """
+
+    unit_code = serializers.CharField(source="unit.code", read_only=True)
+    unit_name = serializers.CharField(source="unit.name", read_only=True)
+    price = serializers.SerializerMethodField()
+    stock = serializers.SerializerMethodField()
+    discount = serializers.SerializerMethodField()
+    delivery_time = serializers.SerializerMethodField()
+
     class Meta:
         model = Products
-        fields = ["id", "supplier_id", "sku", "name", "description"]
+        fields = [
+            "id",
+            "supplier_id",
+            "sku",
+            "name",
+            "description",
+            "unit_code",
+            "unit_name",
+            "price",
+            "discount",
+            "stock",
+            "delivery_time",
+        ]
 
+    def get_price(self, obj):
+        price = (
+            Prices.objects.filter(product=obj)
+            .order_by("-valid_from")
+            .first()
+        )
+        return float(price.amount) if price else None
+
+    def get_stock(self, obj):
+        stock = (
+            StockLevels.objects.filter(product=obj)
+            .order_by("-updated_at")
+            .first()
+        )
+        return float(stock.quantity) if stock else 0.0
+
+    def get_discount(self, obj):
+        # В БД отдельного поля нет, поэтому пока возвращаем 0.
+        # Можно будет заменить, когда добавите колонку / таблицу для скидок.
+        return 0.0
+
+    def get_delivery_time(self, obj):
+        # Аналогично скидке – логическое поле из SRS, пока заглушка.
+        # Например, можно будет хранить в отдельной таблице.
+        return None
+
+
+class ProductCreateUpdateSerializer(serializers.Serializer):
+    """
+    Для создания/обновления товара через API (CRUD).
+    Используем unit_code (kg, liter, pack), а не raw unit_id.
+    """
+
+    sku = serializers.CharField(max_length=255)
+    name = serializers.CharField(max_length=255)
+    description = serializers.CharField(max_length=2000, allow_blank=True, required=False)
+    unit_code = serializers.ChoiceField(choices=["kg", "liter", "pack"])
+    price = serializers.DecimalField(max_digits=12, decimal_places=2)
+    stock = serializers.DecimalField(max_digits=14, decimal_places=3)
+    discount = serializers.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        required=False,
+        default=0,
+    )
+    delivery_time = serializers.IntegerField(required=False, allow_null=True)
+
+
+# ---------- AUTH / USERS ----------
 
 class SupplierRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -48,17 +133,21 @@ class LoginSerializer(serializers.Serializer):
         required=False,
         allow_null=True,
     )
+
+
+# ---------- LINKS (Supplier–Consumer) ----------
+
 class LinkRequestCreateSerializer(serializers.Serializer):
-    
     consumer_id = serializers.IntegerField()
     supplier_id = serializers.IntegerField()
 
 
 class ConsumerLinkSerializer(serializers.ModelSerializer):
     """
-    То, что отдаём во Flutter для consumer'а:
+    Для consumer'а:
     id, supplier_id, supplier_name, status.
     """
+
     supplier_name = serializers.CharField(source="supplier.name", read_only=True)
 
     class Meta:
@@ -68,11 +157,65 @@ class ConsumerLinkSerializer(serializers.ModelSerializer):
 
 class SupplierIncomingLinkSerializer(serializers.ModelSerializer):
     """
-    То, что отдаём во Flutter для supplier'а:
+    Для supplier'а:
     id, consumer_id, consumer_name, status.
     """
+
     consumer_name = serializers.CharField(source="consumer.name", read_only=True)
 
     class Meta:
         model = SupplierConsumerLinks
         fields = ["id", "consumer_id", "consumer_name", "status"]
+
+
+# ---------- ORDERS ----------
+
+class OrderItemInputSerializer(serializers.Serializer):
+    product_id = serializers.IntegerField()
+    quantity = serializers.DecimalField(max_digits=14, decimal_places=3)
+
+
+class OrderCreateSerializer(serializers.Serializer):
+    """
+    Тело запроса: создание заказа из корзины.
+    items: [{product_id, quantity}, ...]
+    """
+
+    items = OrderItemInputSerializer(many=True)
+
+
+class OrderItemSerializer(serializers.ModelSerializer):
+    product_name = serializers.CharField(source="product.name", read_only=True)
+    unit_code = serializers.CharField(source="product.unit.code", read_only=True)
+
+    class Meta:
+        model = OrderItems
+        fields = [
+            "id",
+            "product_id",
+            "product_name",
+            "unit_code",
+            "quantity",
+            "unit_price",
+            "line_total",
+        ]
+
+
+class OrderSerializer(serializers.ModelSerializer):
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
+    consumer_name = serializers.CharField(source="consumer.name", read_only=True)
+    items = OrderItemSerializer(source="orderitems_set", many=True, read_only=True)
+
+    class Meta:
+        model = Orders
+        fields = [
+            "id",
+            "supplier_id",
+            "supplier_name",
+            "consumer_id",
+            "consumer_name",
+            "status",
+            "total_amount",
+            "created_at",
+            "items",
+        ]

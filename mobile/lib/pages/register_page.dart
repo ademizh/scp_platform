@@ -50,7 +50,7 @@ class _RegisterPageState extends State<RegisterPage> {
               email: emailController.text.trim(),
               password: passwordController.text,
               fullName: fullNameController.text.trim(),
-              consumerName: companyNameController.text.trim(),
+              
             );
 
       await SessionService.instance.saveLogin(result);

@@ -15,15 +15,15 @@ class SessionService {
     await prefs.setInt(_keyUserId, result.userId);
     await prefs.setStringList(_keyRoles, result.roles);
 
-    
     if (result.supplierId != null) {
       await prefs.setInt(_keySupplierId, result.supplierId!);
-      await prefs.remove(_keyConsumerId);
-    } else if (result.consumerId != null) {
-      await prefs.setInt(_keyConsumerId, result.consumerId!);
-      await prefs.remove(_keySupplierId);
     } else {
       await prefs.remove(_keySupplierId);
+    }
+
+    if (result.consumerId != null) {
+      await prefs.setInt(_keyConsumerId, result.consumerId!);
+    } else {
       await prefs.remove(_keyConsumerId);
     }
   }
@@ -54,5 +54,7 @@ class SessionService {
     await prefs.remove(_keyRoles);
     await prefs.remove(_keySupplierId);
     await prefs.remove(_keyConsumerId);
+    await prefs.remove('role');       // мы писали это в login_page
+    await prefs.remove('isLoggedIn'); // тоже там
   }
 }

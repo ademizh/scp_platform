@@ -1,9 +1,9 @@
-from django.db import transaction
+from django.db import transaction, connection
+from django.utils import timezone
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from django.db import connection
-from django.utils import timezone 
 
 from .models import (
     Products,
@@ -13,43 +13,263 @@ from .models import (
     SupplierStaffRoles,
     SupplierStaff,
     ConsumerUsers,
-    SupplierConsumerLinks, 
+    SupplierConsumerLinks,
+    Units,
+    StockLevels,
+    Prices,
+    Orders,
+    OrderItems,
 )
 from .serializers import (
     ProductSerializer,
+    ProductCreateUpdateSerializer,
     SupplierRegisterSerializer,
     ConsumerRegisterSerializer,
     LoginSerializer,
-    LinkRequestCreateSerializer,      
-    ConsumerLinkSerializer,     
+    LinkRequestCreateSerializer,
+    ConsumerLinkSerializer,
     SupplierIncomingLinkSerializer,
+    OrderCreateSerializer,
+    OrderSerializer,
 )
 
 
+# ---------- helper: RLS ----------
+
+def _set_rls_user(user_id: int):
+    """
+    Устанавливаем scp.current_user_id для RLS в Postgres.
+    """
+    with connection.cursor() as cursor:
+        cursor.execute(
+            "SELECT set_config('scp.current_user_id', %s, false);",
+            [str(user_id)],
+        )
+
+
+def _get_int_user_id(request):
+    user_id = request.headers.get("X-User-Id") or request.query_params.get("user_id")
+    if not user_id:
+        return None, Response(
+            {"detail": "X-User-Id header or ?user_id= is required"},
+            status=status.HTTP_401_UNAUTHORIZED,
+        )
+    try:
+        return int(user_id), None
+    except ValueError:
+        return None, Response(
+            {"detail": "user_id must be integer"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
+
+# ---------- PRODUCTS ----------
+
 class ProductListView(APIView):
+    """
+    GET  /api/products/           – каталог по RLS (consumer / supplier)
+    POST /api/products/           – создать продукт (supplier)
+    """
+
     def get(self, request):
-        user_id = request.headers.get("X-User-Id") or request.query_params.get("user_id")
-        if not user_id:
-            return Response({"detail": "X-User-Id header or ?user_id= needed"}, status=status.HTTP_401_UNAUTHORIZED)
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
 
-        try:
-            int_user_id = int(user_id)
-        except ValueError:
-            return Response({"detail": "user_id must be integer"}, status=status.HTTP_400_BAD_REQUEST)
-
-        with connection.cursor() as cursor:
-            cursor.execute("SELECT set_config('scp.current_user_id', %s, false);", [str(int_user_id)])
+        _set_rls_user(int_user_id)
 
         qs = Products.objects.all().order_by("id")
         serializer = ProductSerializer(qs, many=True)
         return Response(serializer.data)
 
+    def post(self, request):
+        """
+        Создание товара от лица поставщика.
+        Supplier определяется по user_id -> SupplierStaff.
+        """
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        serializer = ProductCreateUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # Найти supplier по пользователю
+        staff = (
+            SupplierStaff.objects.filter(user_id=int_user_id, is_active=True)
+            .select_related("supplier")
+            .first()
+        )
+        if not staff:
+            return Response(
+                {"detail": "User is not an active supplier staff"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        supplier = staff.supplier
+
+        # Найти единицу измерения по коду
+        try:
+            unit = Units.objects.get(code=data["unit_code"])
+        except Units.DoesNotExist:
+            return Response(
+                {"detail": f"Unit with code '{data['unit_code']}' not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = timezone.now()
+        with transaction.atomic():
+            product = Products.objects.create(
+                supplier=supplier,
+                sku=data["sku"],
+                name=data["name"],
+                description=data.get("description", ""),
+                unit=unit,
+                is_active=True,
+                created_at=now,
+            )
+
+            # Price
+            Prices.objects.create(
+                product=product,
+                currency="KZT",  # можно вынести в SRS / настройки
+                amount=data["price"],
+                valid_from=now.date(),
+            )
+
+            # Stock
+            StockLevels.objects.create(
+                product=product,
+                quantity=data["stock"],
+                updated_at=now,
+            )
+
+            # discount / delivery_time пока не сохраняем в БД (заглушка),
+            # можно расширить схему позже.
+
+        out = ProductSerializer(product)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+
+class ProductDetailView(APIView):
+    """
+    GET    /api/products/<id>/    – детальная инфа
+    PUT    /api/products/<id>/    – обновление товара
+    DELETE /api/products/<id>/    – "удаление" (деактивация)
+    """
+
+    def get_object(self, pk):
+        try:
+            return Products.objects.get(pk=pk)
+        except Products.DoesNotExist:
+            return None
+
+    def get(self, request, pk: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+        _set_rls_user(int_user_id)
+
+        product = self.get_object(pk)
+        if not product:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        serializer = ProductSerializer(product)
+        return Response(serializer.data)
+
+    def put(self, request, pk: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+        _set_rls_user(int_user_id)
+
+        product = self.get_object(pk)
+        if not product:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # проверка, что пользователь – staff этого поставщика
+        staff = SupplierStaff.objects.filter(
+            user_id=int_user_id,
+            supplier=product.supplier,
+            is_active=True,
+        ).first()
+        if not staff:
+            return Response(
+                {"detail": "You are not allowed to modify this product"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = ProductCreateUpdateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            unit = Units.objects.get(code=data["unit_code"])
+        except Units.DoesNotExist:
+            return Response(
+                {"detail": f"Unit with code '{data['unit_code']}' not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        now = timezone.now()
+        with transaction.atomic():
+            product.sku = data["sku"]
+            product.name = data["name"]
+            product.description = data.get("description", "")
+            product.unit = unit
+            product.save()
+
+            Prices.objects.create(
+                product=product,
+                currency="KZT",
+                amount=data["price"],
+                valid_from=now.date(),
+            )
+
+            StockLevels.objects.create(
+                product=product,
+                quantity=data["stock"],
+                updated_at=now,
+            )
+
+        out = ProductSerializer(product)
+        return Response(out.data)
+
+    def delete(self, request, pk: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+        _set_rls_user(int_user_id)
+
+        product = self.get_object(pk)
+        if not product:
+            return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        staff = SupplierStaff.objects.filter(
+            user_id=int_user_id,
+            supplier=product.supplier,
+            is_active=True,
+        ).first()
+        if not staff:
+            return Response(
+                {"detail": "You are not allowed to delete this product"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # мягкое удаление – деактивация
+        product.is_active = False
+        product.save(update_fields=["is_active"])
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+# ---------- AUTH ----------
 
 class SupplierRegisterView(APIView):
     """
-    user
-    supplier
-    supplier_staff with 'owner'
+    user + supplier + supplier_staff (owner)
     """
 
     def post(self, request):
@@ -60,7 +280,7 @@ class SupplierRegisterView(APIView):
         with transaction.atomic():
             user = Users.objects.create(
                 email=data["email"],
-                password_hash=data["password"],  
+                password_hash=data["password"],
                 full_name=data["full_name"],
                 created_at=timezone.now(),
                 is_active=True,
@@ -84,16 +304,16 @@ class SupplierRegisterView(APIView):
                 "user_id": user.id,
                 "supplier_id": supplier.id,
                 "consumer_id": None,
-                "roles": ["owner", "supplier"],  
-                "role": "supplier",            
+                "roles": ["owner", "supplier"],
+                "role": "supplier",
             },
             status=status.HTTP_201_CREATED,
         )
+
+
 class ConsumerRegisterView(APIView):
     """
-    user
-    consumer
-    consumer_users
+    user + consumer + consumer_users
     """
 
     def post(self, request):
@@ -125,17 +345,17 @@ class ConsumerRegisterView(APIView):
                 "user_id": user.id,
                 "supplier_id": None,
                 "consumer_id": consumer.id,
-                "roles": ["consumer"], 
-                "role": "consumer",    
+                "roles": ["consumer"],
+                "role": "consumer",
             },
             status=status.HTTP_201_CREATED,
         )
 
+
 class LoginView(APIView):
     """
-    email 
-    check password
-    give user_id + проверка, что такой supplier/consumer-аккаунт существует
+    email + password
+    login_as: supplier / consumer
     """
 
     def post(self, request):
@@ -143,14 +363,13 @@ class LoginView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        login_as = data.get("login_as")  # 'supplier' / 'consumer' / None
+        login_as = data.get("login_as")
 
         try:
             user = Users.objects.get(email=data["email"])
         except Users.DoesNotExist:
             return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
 
-       
         if user.password_hash != data["password"]:
             return Response({"detail": "Invalid credentials"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -175,7 +394,6 @@ class LoginView(APIView):
             if "consumer" not in roles:
                 roles.append("consumer")
 
-       
         if login_as == "supplier" and not has_supplier:
             return Response(
                 {"detail": "Supplier account with this email does not exist"},
@@ -187,7 +405,6 @@ class LoginView(APIView):
                 {"detail": "Consumer account with this email does not exist"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        
 
         effective_role = login_as
         if effective_role is None:
@@ -205,12 +422,14 @@ class LoginView(APIView):
                 "login_as": effective_role,
             }
         )
+
+
+# ---------- LINKS (Supplier–Consumer) ----------
+
 class LinkRequestCreateView(APIView):
     """
     POST /api/links/request/
-
-    Создаёт (или переоткрывает) link consumer -> supplier
-    со статусом 'pending'.
+    Создаёт (или переоткрывает) link consumer -> supplier со статусом 'pending'.
     """
 
     def post(self, request):
@@ -221,7 +440,6 @@ class LinkRequestCreateView(APIView):
         consumer_id = data["consumer_id"]
         supplier_id = data["supplier_id"]
 
-        # проверим, что такие supplier/consumer вообще есть
         try:
             supplier = Suppliers.objects.get(id=supplier_id, is_active=True)
         except Suppliers.DoesNotExist:
@@ -247,8 +465,7 @@ class LinkRequestCreateView(APIView):
             },
         )
 
-        # если линк уже был, но, например, был отклонён/заблокирован — можно переоткрыть
-        if not created and link.status in ["rejected", "blocked"]:
+        if not created and link.status in ["blocked", "removed"]:
             link.status = "pending"
             link.created_at = timezone.now()
             link.save(update_fields=["status", "created_at"])
@@ -263,8 +480,6 @@ class LinkRequestCreateView(APIView):
 class ConsumerLinksListView(APIView):
     """
     GET /api/links/consumer/<consumer_id>/
-
-    Список всех линков для данного consumer'а.
     """
 
     def get(self, request, consumer_id: int):
@@ -278,8 +493,6 @@ class ConsumerLinksListView(APIView):
 class SupplierIncomingLinksView(APIView):
     """
     GET /api/links/supplier/<supplier_id>/
-
-    Список запросов для supplier'а (и уже принятые тоже, если нужно).
     """
 
     def get(self, request, supplier_id: int):
@@ -293,8 +506,6 @@ class SupplierIncomingLinksView(APIView):
 class LinkApproveView(APIView):
     """
     POST /api/links/<id>/approve/
-
-    Подтверждение link request со стороны supplier'а.
     """
 
     def post(self, request, pk: int):
@@ -311,13 +522,9 @@ class LinkApproveView(APIView):
         return Response({"detail": "approved"})
 
 
-
 class LinkRejectView(APIView):
     """
     POST /api/links/<id>/reject/
-
-    Для новых запросов = "заблокировать" (blocked),
-    чтобы потребитель не мог ещё раз заспамить запросами.
     """
 
     def post(self, request, pk: int):
@@ -329,17 +536,273 @@ class LinkRejectView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        try:
-            if link.status == "pending":
-                link.status = "blocked"
-            else:
-                link.status = "removed"
+        if link.status == "pending":
+            link.status = "blocked"
+        else:
+            link.status = "removed"
 
-            link.save(update_fields=["status"])
-        except DataError as e:
+        link.save(update_fields=["status"])
+        return Response({"detail": "blocked"}, status=status.HTTP_200_OK)
+
+
+# ---------- ORDERS ----------
+
+class OrderListCreateView(APIView):
+    """
+    POST /api/orders/            – consumer: создание заказа из корзины
+    GET  /api/orders/?role=...   – список заказов (consumer / supplier)
+    """
+
+    def post(self, request):
+        """
+        Consumer создаёт заказ.
+        """
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        # находим consumer по пользователю
+        consumer_user = (
+            ConsumerUsers.objects.filter(user_id=int_user_id, is_active=True)
+            .select_related("consumer")
+            .first()
+        )
+        if not consumer_user:
             return Response(
-                {"detail": str(e)},
+                {"detail": "User is not an active consumer"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        consumer = consumer_user.consumer
+
+        serializer = OrderCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        items = data["items"]
+        if not items:
+            return Response(
+                {"detail": "Order must contain at least one item"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        return Response({"detail": "blocked"}, status=status.HTTP_200_OK)
+        product_ids = [item["product_id"] for item in items]
+        products = list(Products.objects.filter(id__in=product_ids))
+        products_by_id = {p.id: p for p in products}
+
+        if len(products_by_id) != len(product_ids):
+            return Response(
+                {"detail": "One or more products not found"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # проверяем, что все товары от одного supplier'а
+        suppliers_ids = {p.supplier_id for p in products}
+        if len(suppliers_ids) != 1:
+            return Response(
+                {"detail": "All products in order must belong to the same supplier"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        supplier_id = suppliers_ids.pop()
+        supplier = Suppliers.objects.get(id=supplier_id)
+
+        # ⬇⬇⬇ ВОТ ЭТА ВСТАВКА ПРО LINK-ЛОГИКУ ⬇⬇⬇
+        link_exists = SupplierConsumerLinks.objects.filter(
+            supplier=supplier,
+            consumer=consumer,
+            status="accepted",
+        ).exists()
+
+        if not link_exists:
+            return Response(
+                {"detail": "You must have an accepted supplier link to place orders"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+        # ⬆⬆⬆ ДО СЮДА ⬆⬆⬆
+
+        now = timezone.now()
+        total_amount = 0
+
+        with transaction.atomic():
+            order = Orders.objects.create(
+                supplier=supplier,
+                consumer=consumer,
+                status="pending",
+                total_amount=0,
+                created_at=now,
+                created_by_id=int_user_id,
+            )
+
+            order_items = []
+            for item in items:
+                prod = products_by_id[item["product_id"]]
+                quantity = item["quantity"]
+
+                price = (
+                    Prices.objects.filter(product=prod)
+                    .order_by("-valid_from")
+                    .first()
+                )
+                if not price:
+                    raise ValueError(f"No price for product {prod.id}")
+
+                unit_price = price.amount
+                line_total = unit_price * quantity
+                total_amount += line_total
+
+                order_items.append(
+                    OrderItems(
+                        order=order,
+                        product=prod,
+                        quantity=quantity,
+                        unit_price=unit_price,
+                        line_total=line_total,
+                    )
+                )
+
+            OrderItems.objects.bulk_create(order_items)
+
+            order.total_amount = total_amount
+            order.save(update_fields=["total_amount"])
+
+        out = OrderSerializer(order)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+    def get(self, request):
+        """
+        Список заказов:
+        - role=consumer: заказы текущего потребителя
+        - role=supplier: заказы текущего поставщика
+        """
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        role = request.query_params.get("role", "consumer")
+
+        if role == "consumer":
+            consumer_user = (
+                ConsumerUsers.objects.filter(user_id=int_user_id, is_active=True)
+                .select_related("consumer")
+                .first()
+            )
+            if not consumer_user:
+                return Response(
+                    {"detail": "User is not an active consumer"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            consumer = consumer_user.consumer
+            qs = Orders.objects.filter(consumer=consumer).order_by("-created_at")
+
+        elif role == "supplier":
+            staff = (
+                SupplierStaff.objects.filter(user_id=int_user_id, is_active=True)
+                .select_related("supplier")
+                .first()
+            )
+            if not staff:
+                return Response(
+                    {"detail": "User is not an active supplier staff"},
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+            supplier = staff.supplier
+            qs = Orders.objects.filter(supplier=supplier).order_by("-created_at")
+
+        else:
+            return Response(
+                {"detail": "role must be 'consumer' or 'supplier'"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        out = OrderSerializer(qs, many=True)
+        return Response(out.data)
+
+
+class OrderAcceptView(APIView):
+    """
+    POST /api/orders/<id>/accept/ – supplier подтверждает заказ
+    """
+
+    def post(self, request, pk: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        try:
+            order = Orders.objects.get(pk=pk)
+        except Orders.DoesNotExist:
+            return Response(
+                {"detail": "Order not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        staff = SupplierStaff.objects.filter(
+            user_id=int_user_id,
+            supplier=order.supplier,
+            is_active=True,
+        ).first()
+
+        if not staff:
+            return Response(
+                {"detail": "You are not allowed to accept this order"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != "pending":
+            return Response(
+                {"detail": "Only pending orders can be accepted"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "accepted"
+        order.save(update_fields=["status"])
+        return Response({"detail": "accepted"})
+
+
+class OrderRejectView(APIView):
+    """
+    POST /api/orders/<id>/reject/ – supplier отклоняет заказ
+    """
+
+    def post(self, request, pk: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        try:
+            order = Orders.objects.get(pk=pk)
+        except Orders.DoesNotExist:
+            return Response(
+                {"detail": "Order not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        staff = SupplierStaff.objects.filter(
+            user_id=int_user_id,
+            supplier=order.supplier,
+            is_active=True,
+        ).first()
+
+        if not staff:
+            return Response(
+                {"detail": "You are not allowed to reject this order"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if order.status != "pending":
+            return Response(
+                {"detail": "Only pending orders can be rejected"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.status = "rejected"
+        order.save(update_fields=["status"])
+        return Response({"detail": "rejected"})
