@@ -159,6 +159,12 @@ const LoginForm = ({ formData, manageChange, manageLoginSubmit, loading }) => (
 
 );
 
+// const defaultProducts = [
+//   { id: 1, name: 'Organic Heirloom Tomatoes', sku: 'VEG-001', price: 4.99, stock: 150, unit: 'kg' },
+//   { id: 2, name: 'Artisan Sourdough Bread', sku: 'BAK-005', price: 6.50, stock: 45, unit: 'loaf' },
+//   { id: 3, name: 'Free-Range Chicken Eggs (Dozen)', sku: 'DAI-012', price: 3.75, stock: 200, unit: 'dozen' },
+// ];
+
 const App = () => {
     const [view, setView] = useState('register');
     const [formData, setFormData] = useState({
@@ -167,9 +173,18 @@ const App = () => {
         password: '',
         confirmPassword: '',
     });
+    const [productForm, setProductForm] = useState({
+        name: '',
+        price: '',
+        discount: '',
+        stock: '',
+        unit: '',
+    });
+
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [isRegistered, setIsRegistered] = useState(false);
+    const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [message, setMessage] = useState('');
 
     const manageChange = (e) => {
@@ -300,6 +315,37 @@ const App = () => {
             setLoading(false);
         }
     }
+
+    const handleAddProduct = (e) => {
+        e.preventDefault();
+
+        if (!productForm.name || !productForm.price || !productForm.stock) {
+            // Note: Using console.error instead of alert() for better UI
+            console.error('Validation Error: Please fill in Name, Price, and Stock.');
+            return;
+        }
+
+        const newProduct = {
+            ...newProductForm,
+            // id: products.length + 1,
+            price: parseFloat(productForm.price),
+            stock: parseInt(productForm.stock, 10),
+            // sku: newProductForm.sku || `PROD-${products.length + 1}`,
+            unit: newProductForm.unit || 'item'
+        };
+
+        setProducts(prev => [newProduct, ...prev]);
+        setNewProductForm({ name: '', sku: '', price: '', stock: '', unit: '' });
+        setSuccessMessage(`Product '${newProduct.name}' added to catalog.`);
+        setTimeout(() => setSuccessMessage(''), 3000);
+    };
+
+    const handleLogout = () => {
+        setIsAuthenticated(false);
+        setFormData({ email: '', password: '', companyName: '', confirmPassword: '' });
+        setCurrentView('login');
+        setSuccessMessage('You have been logged out.');
+    };
 
     if (isRegistered) {
         return (
