@@ -27,7 +27,7 @@ class ProductSerializer(serializers.ModelSerializer):
     - stock: остаток (из StockLevels)
     - discount / delivery_time: логические поля из SRS
     """
-
+    supplier_name = serializers.CharField(source="supplier.name", read_only=True)
     unit_code = serializers.CharField(source="unit.code", read_only=True)
     unit_name = serializers.CharField(source="unit.name", read_only=True)
     price = serializers.SerializerMethodField()
@@ -40,6 +40,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "supplier_id",
+            "supplier_name",
             "sku",
             "name",
             "description",
@@ -219,3 +220,9 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
             "items",
         ]
+        
+class SupplierPublicSerializer(serializers.ModelSerializer):
+    """Для списка поставщиков в поиске (Directory)"""
+    class Meta:
+        model = Suppliers
+        fields = ['id', 'name', 'is_active']

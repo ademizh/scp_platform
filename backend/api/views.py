@@ -31,6 +31,7 @@ from .serializers import (
     SupplierIncomingLinkSerializer,
     OrderCreateSerializer,
     OrderSerializer,
+    SupplierPublicSerializer,
 )
 
 
@@ -806,3 +807,13 @@ class OrderRejectView(APIView):
         order.status = "rejected"
         order.save(update_fields=["status"])
         return Response({"detail": "rejected"})
+class SupplierDirectoryView(APIView):
+    """
+    GET /api/suppliers/directory/
+    Возвращает список всех активных поставщиков для поиска.
+    """
+    def get(self, request):
+        # Берем всех активных поставщиков
+        suppliers = Suppliers.objects.filter(is_active=True)
+        serializer = SupplierPublicSerializer(suppliers, many=True)
+        return Response(serializer.data)
