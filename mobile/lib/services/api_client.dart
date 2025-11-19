@@ -321,14 +321,14 @@ class ApiClient {
   // -------- Link requests --------
 
   Future<List<ConsumerLink>> getConsumerLinks({
-    required int userId,
+    required int consumerId,
   }) async {
-    final uri = Uri.parse('$_baseUrl/api/links/consumer/');
+    final uri = Uri.parse('$_baseUrl/api/links/consumer/$consumerId/');
+
     final response = await http.get(
       uri,
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '$userId',
       },
     );
 
@@ -336,11 +336,9 @@ class ApiClient {
       throw Exception('Failed to load consumer links: ${response.body}');
     }
 
-    final list = jsonDecode(response.body) as List<dynamic>;
-    return list
-        .map((e) => ConsumerLink.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
+    final data = jsonDecode(utf8.decode(response.bodyBytes)) as List;
+    return data.map((e) => ConsumerLink.fromJson(e)).toList();
+}
 
   Future<void> sendLinkRequest({
     required int consumerId,
@@ -377,11 +375,11 @@ class ApiClient {
       throw Exception('Failed to load supplier link requests: ${response.body}');
     }
 
-    final list = jsonDecode(response.body) as List<dynamic>;
-    return list
-        .map((e) => SupplierLinkRequest.fromJson(e as Map<String, dynamic>))
-        .toList();
-  }
+    final data = jsonDecode(utf8.decode(response.bodyBytes)) as List;
+    return data.map((e) => SupplierLinkRequest.fromJson(e)).toList();
+}
+
+
 
   Future<void> approveLinkRequest(int linkId) async {
     final uri = Uri.parse('$_baseUrl/api/links/$linkId/approve/');
@@ -417,7 +415,7 @@ class ApiClient {
       uri,
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '$userId',
+        'X-User-Id': '$userId',  
       },
     );
 

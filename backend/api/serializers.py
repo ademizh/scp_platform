@@ -40,7 +40,7 @@ class ProductSerializer(serializers.ModelSerializer):
         fields = [
             "id",
             "supplier_id",
-            "supplier_name"
+            "supplier_name",
             "sku",
             "name",
             "description",
@@ -220,6 +220,7 @@ class OrderSerializer(serializers.ModelSerializer):
             "created_at",
             "items",
         ]
+        
 class SupplierPublicSerializer(serializers.ModelSerializer):
     """Для списка поставщиков в поиске (Directory)"""
     class Meta:

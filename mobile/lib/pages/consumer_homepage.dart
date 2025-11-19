@@ -24,7 +24,9 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
   // links
   List<int> _myLinkedSupplierIds = [];
-
+  bool _linksLoading = false;
+  String? _linksError;
+  List<ConsumerLink> _consumerLinks = [];
   // catalog
   int _consumerTabIndex = 0;
   bool _catalogLoading = false;
@@ -68,22 +70,39 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
   Future<void> _loadMyApprovedLinks() async {
+    setState(() {
+      _linksLoading = true;
+      _linksError = null;
+    });
+
     try {
+      final consumerId = await SessionService.instance.getConsumerId();
+      if (consumerId == null) return;
+
       final links =
-          await ApiClient.instance.getConsumerLinks(userId: widget.userId);
+          await ApiClient.instance.getConsumerLinks(consumerId: consumerId);
 
       setState(() {
+        _consumerLinks = links;
         _myLinkedSupplierIds = links
             .where((l) => l.status == 'accepted')
             .map((l) => l.supplierId)
             .toList();
       });
     } catch (e) {
-      debugPrint('Error loading links: $e');
+      if (!mounted) return;
+      setState(() {
+        _linksError = e.toString();
+      });
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _linksLoading = false;
+      });
     }
   }
 
-  Future<void> _loadCatalog() async {
+    Future<void> _loadCatalog() async {
     setState(() {
       _catalogLoading = true;
       _catalogError = null;
@@ -91,7 +110,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
     try {
       final products =
-          await ApiClient.instance.getCatalog(userId: widget.userId);
+          await ApiClient.instance.getCatalog(userId: widget.userId); // ← назад к userId
       if (!mounted) return;
       setState(() {
         _catalog = products;
@@ -312,15 +331,49 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   // --------- UI pieces ---------
 
   Widget _buildConsumerCatalog() {
+    if (_linksError != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Failed to load links:\n$_linksError'),
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadMyApprovedLinks,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
+      );
+    }
+
+    // Есть линк-запросы, но ни одного accepted
+    if (_myLinkedSupplierIds.isEmpty && _consumerLinks.isNotEmpty) {
+      return ListView(
+        padding: const EdgeInsets.all(12),
+        children: [
+          const Text(
+            'Your supplier link requests:',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          ..._consumerLinks.map(
+            (link) => ListTile(
+              title: Text(link.supplierName),
+              subtitle: Text('Status: ${link.status}'),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // Полностью нет линков → старый экран "Find suppliers"
     if (_myLinkedSupplierIds.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
-              'You have no approved suppliers yet.',
-              style: TextStyle(fontSize: 16),
-            ),
+            const Text('You have no approved suppliers yet.'),
             const SizedBox(height: 12),
             ElevatedButton(
               onPressed: () {
@@ -331,7 +384,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
                 );
               },
               child: const Text('Find Suppliers'),
-            )
+            ),
           ],
         ),
       );
@@ -363,11 +416,6 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       );
     }
 
-    if (_catalog.isEmpty) {
-      return const Center(
-        child: Text('No products available yet.'),
-      );
-    }
 
     return RefreshIndicator(
       onRefresh: () async {
