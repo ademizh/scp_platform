@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:mobile/pages/login_page.dart';
 import 'package:mobile/services/api_client.dart';
 import 'package:mobile/services/session.dart';
+import 'package:mobile/pages/supplier_directory_page.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -18,7 +19,7 @@ class _HomePageState extends State<HomePage> {
 
   int? _userId;
   String? _loginRole; // 'consumer' or 'supplier'
-
+  List<int> _myLinkedSupplierIds = [];
   // ---------- Consumer state ----------
   int _consumerTabIndex = 0;
   bool _catalogLoading = false;
@@ -26,7 +27,9 @@ class _HomePageState extends State<HomePage> {
   List<Product> _catalog = [];
   final Map<int, double> _cart = {}; // productId -> quantity
   bool _placingOrder = false;
-
+  bool _isDirectoryMode = false; // false = Каталог, true = Поиск поставщиков
+  List<SupplierInfo> _allSuppliers = [];
+  bool _suppliersLoading = false;
   bool _consumerOrdersLoading = false;
   String? _consumerOrdersError;
   List<Order> _consumerOrders = [];
@@ -75,11 +78,12 @@ class _HomePageState extends State<HomePage> {
       });
 
       if (_loginRole == 'consumer') {
-        await Future.wait([
-          _loadCatalog(),
-          _loadConsumerOrders(),
-        ]);
-      } else if (_loginRole == 'supplier') {
+        await _loadMyApprovedLinks();
+
+      if (_myLinkedSupplierIds.isNotEmpty) {
+        await _loadCatalog();
+        }
+      }  else if (_loginRole == 'supplier') {
         await Future.wait([
           _loadSupplierLinks(),
           _loadSupplierOrders(),
@@ -105,9 +109,28 @@ class _HomePageState extends State<HomePage> {
   }
 
   Future<void> _logout() async {
-    await SessionService.instance.logout();
-    _goToLogin();
+  await SessionService.instance.logout();
+  _goToLogin();   // тут уже есть mounted-check внутри _goToLogin
   }
+  Future<void> _loadMyApprovedLinks() async {
+    if (_userId == null) return;
+    try {
+      // Предполагаем, что ApiClient имеет метод getConsumerLinks
+      // Если нет, его надо добавить в api_client.dart
+      final links = await ApiClient.instance.getConsumerLinks(userId: _userId!);
+      
+      setState(() {
+        // Фильтруем только активные связи и берем ID поставщиков
+        _myLinkedSupplierIds = links
+            .where((l) => l.status == 'accepted')
+            .map((l) => l.supplierId)
+            .toList();
+      });
+    } catch (e) {
+      print('Error loading links: $e');
+    }
+  }
+
 
   // ============================================================
   //                      CONSUMER: CATALOG
@@ -185,6 +208,39 @@ class _HomePageState extends State<HomePage> {
   // ============================================================
   //                      CONSUMER: ORDERS
   // ============================================================
+  Future<void> _requestLinkForSupplier(int supplierId) async {
+    try {
+      final consumerId = await SessionService.instance.getConsumerId();
+      if (consumerId == null) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('User not logged in')),
+        );
+        return;
+      }
+
+      await ApiClient.instance.sendLinkRequest(
+        consumerId: consumerId,
+        supplierId: supplierId,
+      );
+
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Link request sent to supplier'),
+          backgroundColor: Colors.green,
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Failed to send link request: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
 
   Future<void> _loadConsumerOrders() async {
     if (_userId == null) return;
@@ -437,8 +493,14 @@ class _HomePageState extends State<HomePage> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: _init,
-                  child: const Text('Retry'),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const SupplierDirectoryPage(),
+                      ),
+                    );
+                  },
+                  child: const Text('Find Suppliers'),
                 ),
               ],
             ),
@@ -463,7 +525,9 @@ class _HomePageState extends State<HomePage> {
         title: const Text('SCP – Consumer'),
         actions: [
           IconButton(
-            onPressed: _logout,
+            onPressed: () {
+              _logout();
+            },
             icon: const Icon(Icons.logout),
           ),
         ],
@@ -478,14 +542,20 @@ class _HomePageState extends State<HomePage> {
       ),
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _consumerTabIndex,
-        onTap: (index) {
+        onTap: (index) async {
           setState(() {
             _consumerTabIndex = index;
           });
+
           if (index == 0) {
-            _loadCatalog();
+            // каждый раз, когда заходим в Catalog —
+            // обновляем связи и, если есть, каталог
+            await _loadMyApprovedLinks();
+            if (_myLinkedSupplierIds.isNotEmpty) {
+              await _loadCatalog();
+            }
           } else if (index == 2) {
-            _loadConsumerOrders();
+            await _loadConsumerOrders();
           }
         },
         items: const [
@@ -503,11 +573,37 @@ class _HomePageState extends State<HomePage> {
           ),
         ],
       ),
+
     );
   }
 
   /// Catalog as GRID (как категории / meals)
   Widget _buildConsumerCatalog() {
+    if (_myLinkedSupplierIds.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Text(
+              'You have no approved suppliers yet.',
+              style: TextStyle(fontSize: 16),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => const SupplierDirectoryPage(),
+                  ),
+                );
+              },
+              child: const Text('Find Suppliers'),
+            )
+          ],
+        ),
+      );
+    }
+    //load catalog
     if (_catalogLoading && _catalog.isEmpty) {
       return const Center(child: CircularProgressIndicator());
     }
@@ -541,7 +637,12 @@ class _HomePageState extends State<HomePage> {
     }
 
     return RefreshIndicator(
-      onRefresh: _loadCatalog,
+      onRefresh: () async {
+        await _loadMyApprovedLinks();
+        if (_myLinkedSupplierIds.isNotEmpty) {
+          await _loadCatalog();
+        }
+      },
       child: GridView.builder(
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(12),
@@ -554,16 +655,15 @@ class _HomePageState extends State<HomePage> {
         itemCount: _catalog.length,
         itemBuilder: (context, index) {
           final product = _catalog[index];
-          final inCart = _cart[product.id] ?? 0.0;
-          final priceText = _formatPrice(product);
-          final subtitleText = _formatProductSubtitle(product);
-
+          final inCart = (_cart[product.id] ?? 0).toInt();
+         
           return _ProductGridCard(
             product: product,
-            priceText: priceText,
-            subtitleText: subtitleText,
             inCart: inCart,
-            onAdd: product.price == null ? null : () => _addToCart(product),
+            linkedSupplierIds: _myLinkedSupplierIds,
+            onAddToCart: () => _addToCart(product),
+            onRemoveFromCart: () => _decreaseCart(product),
+            onRequestLink: _requestLinkForSupplier,  // Функция коннекта
           );
         },
       ),
@@ -960,125 +1060,143 @@ class _HomePageState extends State<HomePage> {
 //                 КАРТОЧКА ТОВАРА В КАТАЛОГЕ
 //                 (стиль как meal_item / category_grid_item)
 // ============================================================
-
 class _ProductGridCard extends StatelessWidget {
   final Product product;
-  final String priceText;
-  final String subtitleText;
-  final double inCart;
-  final VoidCallback? onAdd;
+  final int inCart;
+  final VoidCallback onAddToCart;
+  final VoidCallback? onRemoveFromCart;
+
+  final List<int> linkedSupplierIds;
+  final Future<void> Function(int supplierId) onRequestLink;
 
   const _ProductGridCard({
+    Key? key,
     required this.product,
-    required this.priceText,
-    required this.subtitleText,
     required this.inCart,
-    required this.onAdd,
-  });
+    required this.onAddToCart,
+    required this.onRemoveFromCart,
+    required this.onRequestLink,
+    required this.linkedSupplierIds,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return InkWell(
-      borderRadius: BorderRadius.circular(16),
-      onTap: onAdd,
-      child: Ink(
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(16),
-          gradient: LinearGradient(
-            colors: [
-              theme.colorScheme.primary.withOpacity(0.85),
-              theme.colorScheme.primary.withOpacity(0.65),
-            ],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          boxShadow: const [
-            BoxShadow(
-              blurRadius: 4,
-              offset: Offset(0, 2),
-              color: Colors.black26,
+    final supplierId = product.supplierId;
+    final supplierName = product.supplierName ?? 'Supplier #$supplierId';
+
+    final isLinked = linkedSupplierIds.contains(supplierId);
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(8.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(
+              child: Container(
+                width: double.infinity,
+                color: Colors.grey.shade200,
+                child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
+              ),
             ),
-          ],
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(10),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Верх: название товара
+
+            const SizedBox(height: 8),
+
+            Text(
+              product.name,
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+            ),
+
+            Text(
+              supplierName,
+              style: const TextStyle(fontSize: 10, color: Colors.grey),
+            ),
+
+            const Spacer(),
+
+            if (isLinked) ...[
+              // SHOW PRICE
               Text(
-                product.name,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleMedium?.copyWith(
-                  color: Colors.white,
+                '${(product.price ?? 0).toStringAsFixed(2)} ₸',
+                style: TextStyle(
+                  color: theme.colorScheme.primary,
                   fontWeight: FontWeight.bold,
                 ),
               ),
-              const SizedBox(height: 6),
-              // Цена
-              Text(
-                priceText,
-                style: theme.textTheme.titleSmall?.copyWith(
-                  color: Colors.yellow.shade200,
-                  fontWeight: FontWeight.w600,
-                ),
+              const SizedBox(height: 8),
+
+              if (inCart > 0)
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: const Icon(Icons.remove_circle_outline),
+                      onPressed: onRemoveFromCart,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                    Text('$inCart', style: const TextStyle(fontWeight: FontWeight.bold)),
+                    IconButton(
+                      icon: const Icon(Icons.add_circle_outline),
+                      onPressed: onAddToCart,
+                      padding: EdgeInsets.zero,
+                      constraints: const BoxConstraints(),
+                    ),
+                  ],
+                )
+              else
+                _buildAddButton(theme),
+            ] else ...[
+              const Text(
+                'Price hidden',
+                style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic),
               ),
               const SizedBox(height: 4),
-              // Остаток + доставка
-              Text(
-                subtitleText,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: Colors.white70,
-                ),
-              ),
-              const Spacer(),
-              // Низ: кнопка + "In cart"
-              Row(
-                children: [
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      foregroundColor: theme.colorScheme.primary,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(20),
-                      ),
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 12,
-                        vertical: 6,
-                      ),
-                    ),
-                    onPressed: onAdd,
-                    child: const Text('Add'),
-                  ),
-                  const Spacer(),
-                  if (inCart > 0)
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: Colors.black26,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Text(
-                        'In cart: ${inCart.toStringAsFixed(0)}',
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                        ),
-                      ),
-                    ),
-                ],
-              ),
+              _buildConnectButton(context),
             ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAddButton(ThemeData theme) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: theme.colorScheme.primary,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
+          ),
+          padding: const EdgeInsets.symmetric(vertical: 8),
+        ),
+        onPressed: onAddToCart,
+        child: const Text('Add to Cart'),
+      ),
+    );
+  }
+
+  Widget _buildConnectButton(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: Colors.blueGrey,
+          foregroundColor: Colors.white,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8),
           ),
         ),
+        onPressed: () => onRequestLink(product.supplierId),
+        child: const Text('Connect'),
       ),
     );
   }

@@ -82,12 +82,32 @@ class SupplierLinkRequest {
   }
 }
 
+class SupplierInfo {
+  final int id;
+  final String name;
+
+  SupplierInfo({
+    required this.id,
+    required this.name,
+  });
+
+  factory SupplierInfo.fromJson(Map<String, dynamic> json) {
+    return SupplierInfo(
+      id: json['id'] as int,
+      // Если в Django поле называется иначе (например, 'supplier_name'),
+      // поменяй строку ниже.
+      name: json['name'] as String,
+    );
+  }
+}
 /// ---------- Products & Orders models ----------
 
 class Product {
   final int id;
   final String sku;
   final String name;
+  final int supplierId;   
+  final String? supplierName;
   final String unitCode; // kg / liter / pack
   final double? price;
   final double stock;
@@ -97,6 +117,8 @@ class Product {
   Product({
     required this.id,
     required this.sku,
+    required this.supplierId,
+    this.supplierName,
     required this.name,
     required this.unitCode,
     required this.price,
@@ -108,6 +130,8 @@ class Product {
   factory Product.fromJson(Map<String, dynamic> json) {
     return Product(
       id: json['id'] as int,
+      supplierId: json['supplier_id'] ?? 0, 
+      supplierName: json['supplier_name'],
       sku: json['sku'] as String,
       name: json['name'] as String,
       unitCode: json['unit_code'] as String,
@@ -164,7 +188,19 @@ class OrderItem {
     );
   }
 }
+class Supplier {
+  final int id;
+  final String name;
 
+  Supplier({required this.id, required this.name});
+
+  factory Supplier.fromJson(Map<String, dynamic> json) {
+    return Supplier(
+      id: json['id'],
+      name: json['name'],
+    );
+  }
+}
 class Order {
   final int id;
   final String status;
@@ -270,6 +306,7 @@ class ApiClient {
         'email': email,
         'password': password,
         'full_name': fullName,
+        'consumer_name': fullName,
       }),
     );
 
@@ -306,22 +343,23 @@ class ApiClient {
   }
 
   Future<void> sendLinkRequest({
-    required int userId,
+    required int consumerId,
     required int supplierId,
   }) async {
-    final uri = Uri.parse('$_baseUrl/api/links/create/');
+    final uri = Uri.parse('$_baseUrl/api/links/request/');
     final response = await http.post(
       uri,
       headers: {
         'Content-Type': 'application/json',
-        'X-User-Id': '$userId',
+
       },
       body: jsonEncode({
+        'consumer_id': consumerId,
         'supplier_id': supplierId,
       }),
     );
 
-    if (response.statusCode != 201) {
+    if (response.statusCode != 201 && response.statusCode != 200) {
       throw Exception('Failed to create link request: ${response.body}');
     }
   }
@@ -331,9 +369,9 @@ class ApiClient {
   ) async {
     final uri = Uri.parse('$_baseUrl/api/links/supplier/$supplierId/');
     final response = await http.get(
-      uri,
-      headers: {'Content-Type': 'application/json'},
-    );
+    uri,
+    headers: {'Content-Type': 'application/json'},
+  );
 
     if (response.statusCode != 200) {
       throw Exception('Failed to load supplier link requests: ${response.body}');
@@ -500,4 +538,27 @@ class ApiClient {
       throw Exception('Failed to reject order: ${response.body}');
     }
   }
+  Future<List<SupplierInfo>> getSuppliersDirectory() async {
+    // Путь подгони под свой Django (например, /api/suppliers/ или /api/suppliers/directory/)
+    final uri = Uri.parse('$_baseUrl/api/suppliers/directory/');
+
+    final response = await http.get(
+      uri,
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    );
+
+    if (response.statusCode != 200) {
+      throw Exception('Failed to load suppliers: ${response.body}');
+    }
+
+    final data = jsonDecode(response.body) as List<dynamic>;
+    return data
+        .map((e) => SupplierInfo.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
 }
+
+
+
