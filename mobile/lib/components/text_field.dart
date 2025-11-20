@@ -17,6 +17,8 @@ Widget build(BuildContext context) {
   return TextField(
     controller: controller,
     obscureText: obscureText,
+    cursorColor: Colors.black,
+    style: TextStyle(color: Colors.black),
     decoration: InputDecoration(
       enabledBorder: const OutlineInputBorder(
         borderSide: BorderSide(color: Colors.white),
@@ -28,7 +30,7 @@ Widget build(BuildContext context) {
       filled: true,
       hintText: hintText,
       hintStyle: TextStyle(
-        color: Colors.grey[500],
+        color: const Color.fromARGB(255, 148, 148, 147),
       ),
      
     ),
