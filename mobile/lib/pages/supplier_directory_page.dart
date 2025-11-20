@@ -12,8 +12,12 @@ class SupplierDirectoryPage extends StatefulWidget {
 class _SupplierDirectoryPageState extends State<SupplierDirectoryPage> {
   bool _loading = true;
   String? _error;
+
   List<SupplierInfo> _suppliers = [];
-  int? _userId;
+  List<ConsumerLink> _links = [];
+
+  int? _consumerId;
+  bool _sendingRequest = false;
 
   @override
   void initState() {
@@ -22,22 +26,36 @@ class _SupplierDirectoryPageState extends State<SupplierDirectoryPage> {
   }
 
   Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
-      final userId = await SessionService.instance.getUserId();
-      if (userId == null) {
+      // Берём consumerId из сессии
+      final consumerId = await SessionService.instance.getConsumerId();
+      if (consumerId == null) {
+        if (!mounted) return;
         setState(() {
-          _error = 'User not logged in';
+          _error =
+              'Consumer id not found. Please re-login as consumer.'; // как и раньше
           _loading = false;
         });
         return;
       }
 
+      // Тянем всех поставщиков (как и раньше)
       final suppliers = await ApiClient.instance.getSuppliersDirectory();
+
+      // Тянем все линки этого consumer’а
+      final links =
+          await ApiClient.instance.getConsumerLinks(consumerId: consumerId);
 
       if (!mounted) return;
       setState(() {
-        _userId = userId;
+        _consumerId = consumerId;
         _suppliers = suppliers;
+        _links = links;
         _loading = false;
       });
     } catch (e) {
@@ -48,26 +66,50 @@ class _SupplierDirectoryPageState extends State<SupplierDirectoryPage> {
       });
     }
   }
+
+  Future<void> _refresh() => _load();
+
+  // Находим линк по поставщику (если есть)
+  ConsumerLink? _linkForSupplier(int supplierId) {
+    try {
+      return _links.firstWhere((l) => l.supplierId == supplierId);
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<void> _requestLink(int supplierId) async {
-    final consumerId = await SessionService.instance.getConsumerId();
-    if (consumerId == null) {
+    if (_consumerId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Consumer id not found. Please re-login as consumer.'),
+          content:
+              Text('Consumer id not found. Please re-login as consumer.'),
           backgroundColor: Colors.red,
         ),
       );
       return;
     }
 
+    setState(() {
+      _sendingRequest = true;
+    });
+
     try {
       await ApiClient.instance.sendLinkRequest(
-        consumerId: consumerId,
+        consumerId: _consumerId!,
         supplierId: supplierId,
       );
 
+      // после отправки обновляем список линков
+      final links =
+          await ApiClient.instance.getConsumerLinks(consumerId: _consumerId!);
+
       if (!mounted) return;
+      setState(() {
+        _links = links;
+      });
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Link request sent'),
@@ -82,10 +124,47 @@ class _SupplierDirectoryPageState extends State<SupplierDirectoryPage> {
           backgroundColor: Colors.red,
         ),
       );
+    } finally {
+      if (!mounted) return;
+      setState(() {
+        _sendingRequest = false;
+      });
     }
   }
 
+  // Кнопка со статусом: Connect / Pending / Accepted / Rejected
+  Widget _buildStatusButton(SupplierInfo supplier) {
+    final link = _linkForSupplier(supplier.id);
 
+    String label;
+    VoidCallback? onPressed;
+
+    switch (link?.status) {
+      case 'pending':
+        label = 'Pending';
+        onPressed = null; // ждём, нельзя нажимать
+        break;
+      case 'accepted':
+        label = 'Accepted';
+        onPressed = null; // уже связаны
+        break;
+      case 'rejected':
+        label = 'Rejected';
+        onPressed = null;
+        // если захочешь повторный запрос:
+        // onPressed = _sendingRequest ? null : () => _requestLink(supplier.id);
+        break;
+      default:
+        label = 'Connect';
+        onPressed =
+            _sendingRequest ? null : () => _requestLink(supplier.id);
+    }
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      child: Text(label),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -123,23 +202,23 @@ class _SupplierDirectoryPageState extends State<SupplierDirectoryPage> {
 
     return Scaffold(
       appBar: AppBar(title: const Text('Suppliers')),
-      body: ListView.builder(
-        itemCount: _suppliers.length,
-        itemBuilder: (context, index) {
-          final supplier = _suppliers[index];
+      body: RefreshIndicator(
+        onRefresh: _refresh,
+        child: ListView.builder(
+          itemCount: _suppliers.length,
+          itemBuilder: (context, index) {
+            final supplier = _suppliers[index];
 
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ListTile(
-              title: Text(supplier.name),
-              subtitle: Text('ID: ${supplier.id}'),
-              trailing: ElevatedButton(
-                onPressed: () => _requestLink(supplier.id),
-                child: const Text('Connect'),
+            return Card(
+              margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              child: ListTile(
+                title: Text(supplier.name),
+                subtitle: Text('ID: ${supplier.id}'),
+                trailing: _buildStatusButton(supplier),
               ),
-            ),
-          );
-        },
+            );
+          },
+        ),
       ),
     );
   }

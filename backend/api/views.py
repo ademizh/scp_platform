@@ -4,6 +4,7 @@ from django.utils import timezone
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from decimal import Decimal, ROUND_HALF_UP
 
 from .models import (
     Products,
@@ -78,8 +79,45 @@ class ProductListView(APIView):
             return error_response
 
         _set_rls_user(int_user_id)
+        staff = (
+            SupplierStaff.objects
+            .filter(user_id=int_user_id, is_active=True)
+            .select_related("supplier")
+            .first()
+        )
+        if staff:
+            # Supplier видит только свои товары
+            qs = (
+                Products.objects
+                .filter(supplier=staff.supplier, is_active=True)
+                .order_by("id")
+            )
+        else:
+            # 2) Иначе пробуем как consumer
+            cu = (
+                ConsumerUsers.objects
+                .filter(user_id=int_user_id, is_active=True)
+                .select_related("consumer")
+                .first()
+            )
 
-        qs = Products.objects.all().order_by("id")
+            if cu:
+                consumer = cu.consumer
+                # Берём всех suppliers с accepted-линком
+                supplier_ids = SupplierConsumerLinks.objects.filter(
+                    consumer=consumer,
+                    status="accepted",
+                ).values_list("supplier_id", flat=True)
+
+                qs = (
+                    Products.objects
+                    .filter(supplier_id__in=supplier_ids, is_active=True)
+                    .order_by("id")
+                )
+            else:
+                # Если пользователь вообще не привязан – пустой каталог
+                qs = Products.objects.none()
+
         serializer = ProductSerializer(qs, many=True)
         return Response(serializer.data)
 
@@ -556,17 +594,20 @@ class OrderListCreateView(APIView):
 
     def post(self, request):
         """
-        Consumer создаёт заказ.
+        Consumer создаёт заказ из корзины.
         """
+        # 1) Определяем int user_id из заголовка / query
         int_user_id, error_response = _get_int_user_id(request)
         if error_response:
             return error_response
 
+        # 2) Проставляем current_user_id для RLS
         _set_rls_user(int_user_id)
 
-        # находим consumer по пользователю
+        # 3) Проверяем, что юзер — активный consumer
         consumer_user = (
-            ConsumerUsers.objects.filter(user_id=int_user_id, is_active=True)
+            ConsumerUsers.objects
+            .filter(user_id=int_user_id, is_active=True)
             .select_related("consumer")
             .first()
         )
@@ -577,6 +618,7 @@ class OrderListCreateView(APIView):
             )
         consumer = consumer_user.consumer
 
+        # 4) Валидируем тело запроса
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -588,6 +630,7 @@ class OrderListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # 5) Загружаем продукты
         product_ids = [item["product_id"] for item in items]
         products = list(Products.objects.filter(id__in=product_ids))
         products_by_id = {p.id: p for p in products}
@@ -598,18 +641,18 @@ class OrderListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # проверяем, что все товары от одного supplier'а
-        suppliers_ids = {p.supplier_id for p in products}
-        if len(suppliers_ids) != 1:
+        # 6) Проверяем, что все товары от ОДНОГО supplier'а
+        supplier_ids = {p.supplier_id for p in products}
+        if len(supplier_ids) != 1:
             return Response(
                 {"detail": "All products in order must belong to the same supplier"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        supplier_id = suppliers_ids.pop()
+        supplier_id = supplier_ids.pop()
         supplier = Suppliers.objects.get(id=supplier_id)
 
-        # ⬇⬇⬇ ВОТ ЭТА ВСТАВКА ПРО LINK-ЛОГИКУ ⬇⬇⬇
+        # 7) Проверяем, что есть accepted link между этим consumer и supplier
         link_exists = SupplierConsumerLinks.objects.filter(
             supplier=supplier,
             consumer=consumer,
@@ -621,22 +664,38 @@ class OrderListCreateView(APIView):
                 {"detail": "You must have an accepted supplier link to place orders"},
                 status=status.HTTP_403_FORBIDDEN,
             )
-        # ⬆⬆⬆ ДО СЮДА ⬆⬆⬆
 
+        # 8) Создаём заказ и позиции внутри транзакции
         now = timezone.now()
-        total_amount = 0
-
+        total_amount = Decimal("0.00")
+        
         with transaction.atomic():
-            order = Orders.objects.create(
-                supplier=supplier,
-                consumer=consumer,
-                status="pending",
-                total_amount=0,
-                created_at=now,
-                created_by_id=int_user_id,
-            )
+            # Явно записываем created_at и created_by
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO orders
+                        (supplier_id, consumer_id, status, total_amount,
+                         created_at, created_by)
+                    VALUES (%s, %s, %s, %s, %s, %s)
+                    RETURNING id;
+                    """,
+                    [
+                        supplier.id,
+                        consumer.id,
+                        "pending",
+                        Decimal("0.00"),
+                        now,
+                        int_user_id,
+                    ],
+                )
+                order_id = cursor.fetchone()[0]
+
+            # Загружаем только что созданный объект как Django-модель
+            order = Orders.objects.get(id=order_id)
 
             order_items = []
+
             for item in items:
                 prod = products_by_id[item["product_id"]]
                 quantity = item["quantity"]
@@ -665,6 +724,7 @@ class OrderListCreateView(APIView):
 
             OrderItems.objects.bulk_create(order_items)
 
+            # Обновляем total_amount уже после подсчёта
             order.total_amount = total_amount
             order.save(update_fields=["total_amount"])
 
@@ -722,7 +782,6 @@ class OrderListCreateView(APIView):
         out = OrderSerializer(qs, many=True)
         return Response(out.data)
 
-
 class OrderAcceptView(APIView):
     """
     POST /api/orders/<id>/accept/ – supplier подтверждает заказ
@@ -755,12 +814,7 @@ class OrderAcceptView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if order.status != "pending":
-            return Response(
-                {"detail": "Only pending orders can be accepted"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+        
         order.status = "accepted"
         order.save(update_fields=["status"])
         return Response({"detail": "accepted"})
@@ -798,12 +852,7 @@ class OrderRejectView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        if order.status != "pending":
-            return Response(
-                {"detail": "Only pending orders can be rejected"},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
+    
         order.status = "rejected"
         order.save(update_fields=["status"])
         return Response({"detail": "rejected"})

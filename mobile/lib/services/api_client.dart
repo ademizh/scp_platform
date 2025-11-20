@@ -142,7 +142,15 @@ class Product {
     );
   }
 }
-
+double _asDouble(dynamic value) {
+  if (value == null) return 0.0;
+  if (value is double) return value;
+  if (value is int) return value.toDouble();
+  if (value is String) {
+    return double.tryParse(value) ?? 0.0;
+  }
+  return 0.0;
+}
 class OrderItemInput {
   final int productId;
   final double quantity;
@@ -176,15 +184,16 @@ class OrderItem {
   });
 
   factory OrderItem.fromJson(Map<String, dynamic> json) {
-    final qty = (json['quantity'] as num).toDouble();
-    final unitPrice = (json['unit_price'] as num).toDouble();
+    final qty = _asDouble(json['quantity']);
+    final unitPrice = _asDouble(json['unit_price']);
+    final lineTotal = _asDouble(json['line_total']);
     return OrderItem(
       productId: json['product_id'] as int,
       productName: json['product_name'] as String,
       unitCode: json['unit_code'] as String,
-      quantity: qty,
-      unitPrice: unitPrice,
-      lineTotal: qty * unitPrice,
+      quantity: double.parse(json['quantity'].toString()),
+      unitPrice: double.parse(json['unit_price'].toString()),
+      lineTotal: double.parse(json['line_total'].toString()),
     );
   }
 }
@@ -221,10 +230,11 @@ class Order {
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
+    print('Parsing Order ID: ${json['id']}, Amount: ${json['total_amount']}');
     return Order(
       id: json['id'] as int,
       status: json['status'] as String,
-      totalAmount: (json['total_amount'] as num).toDouble(),
+      totalAmount: _asDouble(json['total_amount']),
       supplierName: json['supplier_name'] as String?,
       consumerName: json['consumer_name'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -433,31 +443,43 @@ class ApiClient {
 
   // -------- Orders --------
 
-  Future<Order> createOrder({
-    required int userId,
-    required List<OrderItemInput> items,
-  }) async {
-    final uri = Uri.parse('$_baseUrl/api/orders/');
-    final response = await http.post(
-      uri,
-      headers: {
-        'Content-Type': 'application/json',
-        'X-User-Id': '$userId',
-      },
-      body: jsonEncode({
-        'items': items.map((e) => e.toJson()).toList(),
-      }),
-    );
+Future<Order> createOrder({
+  required int userId,
+  required List<OrderItemInput> items,
+}) async {
+  final uri = Uri.parse('$_baseUrl/api/orders/');
+  final bodyMap = {
+      'items': items.map((e) => e.toJson()).toList(),
+    };
+  final bodyString = jsonEncode(bodyMap);
 
-    if (response.statusCode != 201) {
-      throw Exception('Failed to create order: ${response.body}');
+  print('🚀 FINAL BODY: $bodyString');
+  final response = await http.post(
+    uri,
+    headers: {
+      'Content-Type': 'application/json',
+      'X-User-Id': '$userId', // 👈 ОБЯЗАТЕЛЬНО
+    },
+    body: bodyString, 
+  );
+// 2. СМОТРИМ В КОНСОЛЬ (внизу экрана)
+    print('----------------------------------------');
+    print('🚀 ОТПРАВЛЯЮ ЗАКАЗ:');
+    print(bodyString); 
+    print('----------------------------------------');
+    print('📥 ОТВЕТ СЕРВЕРА (${response.statusCode}):');
+    print(response.body);
+  
+  if (response.statusCode != 201) {
+    print('❌ SERVER ERROR: ${response.body}');
+      // Выводим текст ошибки, чтобы видеть, что ответил сервер
+      throw Exception('Failed to create order (${response.statusCode}): ${response.body}');
     }
 
-    final jsonMap = jsonDecode(response.body) as Map<String, dynamic>;
-    return Order.fromJson(jsonMap);
-  }
+  return Order.fromJson(jsonDecode(response.body));
+}
 
-  Future<List<Order>> getConsumerOrders({
+Future<List<Order>> getConsumerOrders({
     required int userId,
   }) async {
     final uri = Uri.parse('$_baseUrl/api/orders/?role=consumer');

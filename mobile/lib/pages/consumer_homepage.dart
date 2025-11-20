@@ -23,6 +23,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   bool _initialLoading = true;
 
   // links
+  int _userId = 0;
   List<int> _myLinkedSupplierIds = [];
   bool _linksLoading = false;
   String? _linksError;
@@ -46,17 +47,35 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     _init();
   }
 
-  Future<void> _init() async {
+Future<void> _init() async {
+    setState(() => _initialLoading = true); // Начинаем загрузку
+
     try {
-      await _loadMyApprovedLinks();
-      if (_myLinkedSupplierIds.isNotEmpty) {
-        await _loadCatalog();
+      final uid = await SessionService.instance.getUserId();
+
+      if (uid != null) {
+        setState(() => _userId = uid);
+        print('✅ Consumer Logged in as ID: $_userId');
+
+        // 1. Загружаем список друзей
+        await _loadMyApprovedLinks();
+
+        // 2. Если друзья есть — грузим каталог
+        if (_myLinkedSupplierIds.isNotEmpty) {
+          await _loadCatalog();
+        }
+      } else {
+        print('⛔ NO USER ID FOUND');
       }
+    } catch (e) {
+      print('Error in _init: $e');
     } finally {
-      if (!mounted) return;
-      setState(() {
-        _initialLoading = false;
-      });
+      // ВАЖНО: В любом случае (даже если ошибка) убираем загрузку
+      if (mounted) {
+        setState(() {
+          _initialLoading = false;
+        });
+      }
     }
   }
 
@@ -130,6 +149,24 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
 
   void _addToCart(Product product) {
     setState(() {
+      // Если в корзине уже есть товар, проверяем, что он от того же поставщика
+      if (_cart.isNotEmpty) {
+        final existingProductId = _cart.keys.first;
+        final existingProduct = _findProduct(existingProductId);
+
+        if (existingProduct != null &&
+            existingProduct.supplierId != product.supplierId) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text(
+                'You can place an order with one supplier at a time. Clear the cart or finish this order first.',
+              ),
+            ),
+          );
+          return;
+        }
+      }
+
       final current = _cart[product.id] ?? 0.0;
       _cart[product.id] = current + 1.0;
     });
@@ -169,7 +206,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
         consumerId: consumerId,
         supplierId: supplierId,
       );
-
+      await _loadMyApprovedLinks();
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -177,6 +214,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
           backgroundColor: Colors.green,
         ),
       );
+
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -214,59 +252,121 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
     }
   }
 
-  Future<void> _placeOrder() async {
-    if (_cart.isEmpty) {
+Future<void> _placeOrder() async {
+  if (_cart.isEmpty) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Cart is empty')),
+    );
+    return;
+  }
+
+  setState(() {
+    _placingOrder = true;
+  });
+
+  try {
+    // 1) Получаем consumerId из сессии
+    final consumerId = await SessionService.instance.getConsumerId();
+    if (consumerId == null) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Cart is empty')),
+        const SnackBar(
+          content: Text('Consumer not found. Please log in again.'),
+        ),
       );
       return;
     }
 
+    // 2) Определяем supplierId по первому товару в корзине
+    int? supplierId;
+    for (final entry in _cart.entries) {
+      final product = _findProduct(entry.key);
+      if (product == null) continue;
+
+      supplierId ??= product.supplierId;
+
+      // Дополнительная защита: если вдруг в корзине разные suppliers
+      if (product.supplierId != supplierId) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content:
+                Text('Cart must contain products from only one supplier.'),
+          ),
+        );
+        return;
+      }
+    }
+
+    if (supplierId == null) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Could not determine supplier for this order.'),
+        ),
+      );
+      return;
+    }
+
+    // 3) Проверяем, что с этим поставщиком есть accepted-link
+    if (!_myLinkedSupplierIds.contains(supplierId)) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('You are not linked to this supplier. Request access first.'),
+        ),
+      );
+      return;
+    }
+
+    // 4) Собираем позиции заказа
+    final items = _cart.entries
+        .map(
+          (e) => OrderItemInput(
+            productId: e.key,
+            quantity: e.value,
+          ),
+        )
+        .toList();
+
+    // 5) Отправляем заказ на бэкенд
+    final order = await ApiClient.instance.createOrder(
+      userId: widget.userId,
+      items: items,
+    );
+
+    if (!mounted) return;
+
+    // 6) Чистим корзину и обновляем список заказов
     setState(() {
-      _placingOrder = true;
+      _cart.clear();
     });
 
-    try {
-      final items = _cart.entries
-          .map(
-            (e) => OrderItemInput(
-              productId: e.key,
-              quantity: e.value,
-            ),
-          )
-          .toList();
+    await _loadConsumerOrders();
 
-      final order = await ApiClient.instance.createOrder(
-        userId: widget.userId,
-        items: items,
-      );
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Order #${order.id} created')),
+    );
 
-      if (!mounted) return;
-      setState(() {
-        _cart.clear();
-      });
-      await _loadConsumerOrders();
-
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Order #${order.id} created')),
-      );
-      setState(() {
-        _consumerTabIndex = 2; // My Orders tab
-      });
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to create order: $e')),
-      );
-    } finally {
-      if (!mounted) return;
-      setState(() {
-        _placingOrder = false;
-      });
-    }
+    // 7) Переключаемся на вкладку "My orders"
+    setState(() {
+      _consumerTabIndex = 2;
+    });
+  } catch (e) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Failed to create order: $e')),
+    );
+  } finally {
+    if (!mounted) return;
+    setState(() {
+      _placingOrder = false;
+    });
   }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +380,24 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
       appBar: AppBar(
         title: const Text('SCP – Consumer'),
         actions: [
+          IconButton(
+            onPressed: () async {
+              // Открываем список поставщиков
+              await Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SupplierDirectoryPage(),
+                ),
+              );
+              // После возврата обновляем линки
+              await _loadMyApprovedLinks();
+              // Если появились accepted-линки — грузим каталог
+              if (_myLinkedSupplierIds.isNotEmpty) {
+                await _loadCatalog();
+              }
+            },
+            icon: const Icon(Icons.person_add_alt_1),
+            tooltip: 'Find suppliers',
+          ),
           IconButton(
             onPressed: _logout,
             icon: const Icon(Icons.logout),
@@ -376,12 +494,16 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
             const Text('You have no approved suppliers yet.'),
             const SizedBox(height: 12),
             ElevatedButton(
-              onPressed: () {
-                Navigator.of(context).push(
+              onPressed: () async {
+                await Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (_) => const SupplierDirectoryPage(),
                   ),
                 );
+                await _loadMyApprovedLinks();
+                if (_myLinkedSupplierIds.isNotEmpty) {
+                  await _loadCatalog();
+                }
               },
               child: const Text('Find Suppliers'),
             ),
