@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:mobile/auth/auth.dart'; // 👈 from SCP platform
-import 'package:mobile/screens/tabs.dart';
-import 'package:mobile/services/session.dart';
+
+import 'package:mobile/auth/auth.dart';        // login/register page
+import 'package:mobile/services/session.dart'; // session handler
 
 final theme = ThemeData(
   useMaterial3: true,
   colorScheme: ColorScheme.fromSeed(
     brightness: Brightness.dark,
-    seedColor: const Color.fromARGB(255, 131, 57, 0),
+    seedColor: Color.fromARGB(255, 131, 57, 0),
   ),
 );
 
@@ -24,7 +24,7 @@ class App extends StatelessWidget {
     return MaterialApp(
       theme: theme,
       debugShowCheckedModeBanner: false,
-      home: const RootPage(), // 👈 chooses between login or home
+      home: const RootPage(),
     );
   }
 }
@@ -46,15 +46,15 @@ class _RootPageState extends State<RootPage> {
     _checkSession();
   }
 
-Future<void> _checkSession() async {
-  final session = SessionService.instance; 
-  final userId = await session.getUserId();
-  setState(() {
-    _isLoggedIn = userId != null; // user is logged in if userId exists
-    _loading = false;
-  });
-}
+  Future<void> _checkSession() async {
+    final session = SessionService.instance;
+    final userId = await session.getUserId();
 
+    setState(() {
+      _isLoggedIn = userId != null;
+      _loading = false;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -64,7 +64,23 @@ Future<void> _checkSession() async {
       );
     }
 
-    // 👇 if user logged in → show Meals home, else show Login/Register
-    return _isLoggedIn ? const Tabs() : const AuthPage();
+    // 👇 If logged in → go to your new home page (NOT Tabs)
+    return _isLoggedIn ? const HomePage() : const AuthPage();
+  }
+}
+
+class HomePage extends StatelessWidget {
+  const HomePage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(
+        child: Text(
+          "Welcome! You're logged in.",
+          style: TextStyle(fontSize: 22),
+        ),
+      ),
+    );
   }
 }
