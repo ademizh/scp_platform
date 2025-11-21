@@ -161,7 +161,7 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
     login_as = serializers.ChoiceField(
-        choices=["supplier", "consumer"],
+        choices=["supplier", "consumer", "sales"],
         required=False,
         allow_null=True,
     )
