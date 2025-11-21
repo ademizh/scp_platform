@@ -185,7 +185,7 @@ class _SupplierHomePageState extends State<SupplierHomePage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('SCP – Supplier'),
+        title: const Text('SCP – Sales'),
         actions: [
           IconButton(
             onPressed: _logout,
