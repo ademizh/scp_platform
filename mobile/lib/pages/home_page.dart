@@ -30,6 +30,7 @@ class _HomePageState extends State<HomePage> {
   Future<void> _init() async {
     try {
       final userId = await SessionService.instance.getUserId();
+      
       if (userId == null) {
         _goToLogin();
         return;
@@ -42,8 +43,8 @@ class _HomePageState extends State<HomePage> {
       if (loginRole == null) {
         if (roles.contains('consumer')) {
           loginRole = 'consumer';
-        } else if (roles.contains('supplier')) {
-          loginRole = 'supplier';
+        } else if (roles.contains('sales')) {
+          loginRole = 'sales';
         }
       }
 
@@ -101,7 +102,7 @@ class _HomePageState extends State<HomePage> {
       return const SizedBox.shrink();
     }
 
-    if (_loginRole == 'supplier') {
+    if (_loginRole == 'sales') {
       return SupplierHomePage(userId: _userId!);
     }
 
