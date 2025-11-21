@@ -4,58 +4,58 @@ import React, { useState } from "react";
 import { UserPlus, Loader, Building2, Package } from "lucide-react";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
 // Универсальный helper для запросов к Django API
 async function apiFetch(path, { method = "GET", body, userId } = {}) {
-  const headers = {
-    "Content-Type": "application/json",
-  };
+    const headers = {
+        "Content-Type": "application/json",
+    };
 
-  if (userId) {
-    headers["X-User-Id"] = String(userId); // для RLS в Products / Orders
-  }
-
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    method,
-    headers,
-    body: body ? JSON.stringify(body) : undefined,
-  });
-
-  if (res.status === 204) return null;
-
-  let data = null;
-  try {
-    data = await res.json();
-  } catch {
-    // тело пустое или не JSON — оставим data = null
-  }
-
-  if (!res.ok) {
-    let msg = "Server error";
-
-    if (data) {
-      if (typeof data === "string") {
-        msg = data;
-      } else if (data.detail) {
-        msg = data.detail;
-      } else {
-        // вытащить первую ошибку из объекта вида {field: ["error1", "error2"]}
-        const keys = Object.keys(data);
-        if (keys.length > 0) {
-          const firstVal = data[keys[0]];
-          if (Array.isArray(firstVal) && firstVal.length > 0) {
-            msg = firstVal[0];
-          } else if (typeof firstVal === "string") {
-            msg = firstVal;
-          }
-        }
-      }
+    if (userId) {
+        headers["X-User-Id"] = String(userId); // для RLS в Products / Orders
     }
 
-    throw new Error(msg);
-  }
+    const res = await fetch(`${API_BASE_URL}${path}`, {
+        method,
+        headers,
+        body: body ? JSON.stringify(body) : undefined,
+    });
 
-  return data;
+    if (res.status === 204) return null;
+
+    let data = null;
+    try {
+        data = await res.json();
+    } catch {
+        // тело пустое или не JSON — оставим data = null
+    }
+
+    if (!res.ok) {
+        let msg = "Server error";
+
+        if (data) {
+            if (typeof data === "string") {
+                msg = data;
+            } else if (data.detail) {
+                msg = data.detail;
+            } else {
+                // вытащить первую ошибку из объекта вида {field: ["error1", "error2"]}
+                const keys = Object.keys(data);
+                if (keys.length > 0) {
+                    const firstVal = data[keys[0]];
+                    if (Array.isArray(firstVal) && firstVal.length > 0) {
+                        msg = firstVal[0];
+                    } else if (typeof firstVal === "string") {
+                        msg = firstVal;
+                    }
+                }
+            }
+        }
+
+        throw new Error(msg);
+    }
+
+    return data;
 }
 
 
@@ -139,7 +139,12 @@ const RequestsView = ({
     <div className="p-6 border border-gray-400 bg-white w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6 border-b pb-3">
             <h1 className="text-2xl font-bold text-gray-800">🔗 Link Requests</h1>
-            <button onClick={() => setView("dashboard")} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">Back to Catalog</button>
+            <button
+                onClick={() => setView("dashboard")}
+                className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
+            >
+                Back to Catalog
+            </button>
         </div>
 
         <div className="flex space-x-4 mb-6">
@@ -287,8 +292,9 @@ const CatalogView = ({
     isOwner,
     isManager,
     goToUserManagement,
-    goToOrders, 
-    goToRequests
+    goToOrders,
+    goToRequests,
+    goToComplaints
 }) => (
     <div className="p-6 border border-gray-400 bg-white w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6 border-b pb-3">
@@ -303,6 +309,14 @@ const CatalogView = ({
                         className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
                     >
                         Orders
+                    </button>
+                )}
+                {isManager && (
+                    <button
+                        onClick={goToComplaints}
+                        className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
+                    >
+                        Complaints
                     </button>
                 )}
                 <button
@@ -619,8 +633,17 @@ const OrderView = ({
                                 <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
-                                        const price = product ? Number(product.price) : 0;
-                                        return sum + price * Number(item.units);
+                                        if (!product) return sum;
+
+                                        const rawPrice = Number(product.price);
+                                        const discount = Number(product.discount || 0);
+
+                                        // price after discount
+                                        const discountedPrice = rawPrice * (1 - discount / 100);
+
+                                        // total for this product
+                                        return sum + discountedPrice * Number(item.units);
+
                                     }, 0).toFixed(2)}
                                 </td>
                             </tr>
@@ -662,8 +685,17 @@ const OrderView = ({
                                 <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
-                                        const price = product ? Number(product.price) : 0;
-                                        return sum + price * Number(item.units);
+                                        if (!product) return sum;
+
+                                        const rawPrice = Number(product.price);
+                                        const discount = Number(product.discount || 0);
+
+                                        // price after discount
+                                        const discountedPrice = rawPrice * (1 - discount / 100);
+
+                                        // total for this product
+                                        return sum + discountedPrice * Number(item.units);
+
                                     }, 0).toFixed(2)}
                                 </td>
                             </tr>
@@ -673,6 +705,95 @@ const OrderView = ({
 
                 {rejectedOrders.length === 0 && (
                     <div className="p-4 text-center text-gray-600">No rejected orders.</div>
+                )}
+            </div>
+        )}
+    </div>
+)
+
+const ComplaintsView = ({
+    escalatedComplaints,
+    resolveComplaint,
+    resolvedComplaints,
+    complaintViewType,
+    setComplaintViewType,
+    setView
+}) => (
+    <div className="p-6 border border-gray-400 bg-white w-full max-w-4xl mx-auto">
+        <div className="flex items-center justify-between mb-6 border-b pb-3">
+            <h1 className="text-2xl font-bold text-gray-800">Complaints</h1>
+            <button onClick={() => setView("dashboard")} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                Back to Catalog
+            </button>
+        </div>
+
+        <div>
+            <button onClick={() => setComplaintViewType("escalated")} className={`px-4 py-2 border ${complaintViewType === "escalated" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Escalated</button>
+            <button onClick={() => setComplaintViewType("resolved")} className={`px-4 py-2 border ${complaintViewType === "resolved" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Resolved</button>
+        </div>
+
+        {/* Escalated */}
+        {complaintViewType === "escalated" && (
+            <div className="border border-gray-400">
+                <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-200 text-gray-700">
+                        <tr>
+                            <th className="px-4 py-2">ID</th>
+                            <th className="px-4 py-2">Consumer Name</th>
+                            {/* <th className="px-4 py-2">Date</th> */}
+                            <th className="px-4 py-2">Text</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
+                        {escalatedComplaints.map(c => (
+                            <tr key={c.id}>
+                                <td className="px-4 py-2">{c.id}</td>
+                                <td className="px-4 py-2">{c.consumer}</td>
+                                {/* <td className="px-4 py-2">{c.date}</td> */}
+                                <td className="px-4 py-2">{c.description}</td>
+                                <td className="px-4 py-2">
+                                    <button
+                                        onClick={() => resolveComplaint(c.id)}
+                                        className="px-2 py-1 border border-green-700 text-green-700 hover:bg-green-100 text-xs"
+                                    >
+                                        Resolve
+                                    </button>
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {escalatedComplaints.length == 0 && (
+                    <div className="p-4 text-center text-gray-600">No escalated complaints.</div>
+                )}
+            </div>
+        )}
+
+        {/* Resolved */}
+        {complaintViewType === "resolved" && (
+            <div className="border border-gray-400">
+                <table className="min-w-full divide-y divide-gray-300">
+                    <thead className="bg-gray-200 text-gray-700">
+                        <tr>
+                            <th className="px-4 py-2">ID</th>
+                            <th className="px-4 py-2">Consumer Name</th>
+                            {/* <th className="px-4 py-2">Date</th> */}
+                            <th className="px-4 py-2">Text</th>
+                        </tr>
+                    </thead>
+                    <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
+                        {resolvedComplaints.map(c => (
+                            <tr key={c.id}>
+                                <td className="px-4 py-2">{c.id}</td>
+                                <td className="px-4 py-2">{c.consumer}</td>
+                                {/* <td className="px-4 py-2">{c.date}</td> */}
+                                <td className="px-4 py-2">{c.description}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+                {resolvedComplaints.length == 0 && (
+                    <div className="p-4 text-center text-gray-600">No resolved complaints.</div>
                 )}
             </div>
         )}
@@ -728,6 +849,12 @@ const App = () => {
 
     const [orderStatus, setOrderStatus] = useState("pending");
 
+    // complaints
+    const [escalatedComplaints, setEscalatedComplaints] = useState([]);
+    const [resolvedComplaints, setResolvedComplaints] = useState([]);
+
+    const [complaintViewType, setComplaintViewType] = useState("escalated");
+
     // utils
     const nextId = (list) => (list && list.length ? Math.max(...list.map(x => x.id)) + 1 : 1);
 
@@ -765,7 +892,7 @@ const App = () => {
     /* ------------------------
        Registration (Owner)
        ------------------------ */
-// ---------- REGISTRATION ----------
+    // ---------- REGISTRATION ----------
     const manageRegistrationSubmit = async (e) => {
         e.preventDefault();
         if (!verifyForm()) return;
@@ -827,49 +954,49 @@ const App = () => {
     const loadSupplierLinks = async (currentSupplierId) => {
         try {
             const data = await apiFetch(`/api/links/supplier/${currentSupplierId}/`, {
-            method: "GET",
+                method: "GET",
             });
 
             const normalized = (data || []).map((row) => ({
-            id: row.id,
-            consumerId: row.consumer_id,
-            name: row.consumer_name,
-            email: row.consumer_email || "", // в сериализаторе email нет, оставляем пустым
-            date: row.created_at ? new Date(row.created_at).toLocaleString() : "",
-            status: row.status,
+                id: row.id,
+                consumerId: row.consumer_id,
+                name: row.consumer_name,
+                email: row.consumer_email || "", // в сериализаторе email нет, оставляем пустым
+                date: row.created_at ? new Date(row.created_at).toLocaleString() : "",
+                status: row.status,
             }));
 
             setPendingRequests(normalized.filter((r) => r.status === "pending"));
             setAcceptedRequests(normalized.filter((r) => r.status === "accepted"));
             // в бэке есть status: blocked / removed – разнесём так:
             setRejectedRequests(
-            normalized.filter((r) => r.status === "removed" || r.status === "rejected")
+                normalized.filter((r) => r.status === "removed" || r.status === "rejected")
             );
             setBlockedRequests(normalized.filter((r) => r.status === "blocked"));
         } catch (err) {
             setError(err.message || "Failed to load link requests");
         }
-        };
+    };
 
     // загрузка заказов для текущего supplier (по userId и role=supplier)
     const loadSupplierOrders = async (currentUserId) => {
         try {
             const data = await apiFetch("/api/orders/?role=supplier", {
-            method: "GET",
-            userId: currentUserId,
+                method: "GET",
+                userId: currentUserId,
             });
 
             const normalized = (data || []).map((o) => ({
-            id: o.id,
-            consumerName: o.consumer_name,
-            email: o.consumer_email || "",
-            date: o.created_at ? new Date(o.created_at).toLocaleString() : "",
-            status: o.status,
-            products: (o.items || []).map((it) => ({
-                id: it.product_id,
-                name: it.product_name,
-                units: Number(it.quantity),
-            })),
+                id: o.id,
+                consumerName: o.consumer_name,
+                email: o.consumer_email || "",
+                date: o.created_at ? new Date(o.created_at).toLocaleString() : "",
+                status: o.status,
+                products: (o.items || []).map((it) => ({
+                    id: it.product_id,
+                    name: it.product_name,
+                    units: Number(it.quantity),
+                })),
             }));
 
             setPendingOrders(normalized.filter((o) => o.status === "pending"));
@@ -878,26 +1005,48 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to load orders");
         }
-        };
+    };
     const loadSupplierStaff = async (currentUserId, currentSupplierId) => {
         try {
             const data = await apiFetch(`/api/suppliers/${currentSupplierId}/staff/`, {
-            method: "GET",
-            userId: currentUserId,
+                method: "GET",
+                userId: currentUserId,
             });
 
             const mapped = (data || []).map((s) => ({
-            id: s.id,
-            name: s.full_name,
-            email: s.email,
-            role: s.role_code, // "owner" | "manager" | "sales"
+                id: s.id,
+                name: s.full_name,
+                email: s.email,
+                role: s.role_code, // "owner" | "manager" | "sales"
             }));
 
             setUsers(mapped);
         } catch (err) {
             setError(err.message || "Failed to load staff");
         }
-        };
+    };
+
+    const loadComplaints = async (currentUserId) => {
+        try {
+            const data = await apiFetch("/api/incidents/?supplier_id=${supplierId}", {
+                method: "GET",
+                userId: currentUserId,
+            });
+
+            const mapped = (data || []).map(c => ({
+                id: c.id,
+                consumer: c.consumer || "",
+                description: c.description || "",
+                status: c.status,
+            }));
+
+            setEscalatedComplaints(mapped.filter(c => c.status === "open" || c.status === "escalated"));
+            setResolvedComplaints(mapped.filter(c => c.status === "resolved"));
+        } catch (err) {
+            setError(err.message || "Failed to load complaints");
+        }
+
+    };
 
     const manageLoginSubmit = async (e) => {
         e.preventDefault();
@@ -924,7 +1073,7 @@ const App = () => {
                 throw new Error("This account is not linked to a supplier");
             }
 
-            
+
             setUserId(data.user_id);
             setSupplierId(data.supplier_id);
 
@@ -932,18 +1081,18 @@ const App = () => {
             let role = null;
 
             if (data.login_as === "supplier") {
-            if (roles.includes("owner")) role = "owner";
-            else if (roles.includes("manager")) role = "manager";
-            else if (roles.includes("sales")) role = "sales";
-            else role = "supplier";
+                if (roles.includes("owner")) role = "owner";
+                else if (roles.includes("manager")) role = "manager";
+                else if (roles.includes("sales")) role = "sales";
+                else role = "supplier";
             } else {
-            role = "consumer";
+                role = "consumer";
             }
 
             setCurrentUser({
-            id: data.user_id,
-            role,
-            email: formData.email,
+                id: data.user_id,
+                role,
+                email: formData.email,
             });
 
             setIsAuthenticated(true);
@@ -1074,7 +1223,7 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to approve link");
         }
-        };
+    };
 
     const rejectRequest = async (id) => {
         if (
@@ -1091,7 +1240,7 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to reject link");
         }
-        };
+    };
 
     const blockRequest = async (id) => {
         if (
@@ -1129,14 +1278,14 @@ const App = () => {
 
         try {
             await apiFetch(`/api/suppliers/${supplierId}/staff/`, {
-            method: "POST",
-            body: {
-                full_name: name,
-                email,
-                password,
-                role_code: "manager",
-            },
-            userId,
+                method: "POST",
+                body: {
+                    full_name: name,
+                    email,
+                    password,
+                    role_code: "manager",
+                },
+                userId,
             });
 
             await loadSupplierStaff(userId, supplierId);
@@ -1145,9 +1294,9 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to create manager");
         }
-        };
+    };
 
-        const createSales = async ({ name, email, password }) => {
+    const createSales = async ({ name, email, password }) => {
         if (!currentUser || currentUser.role !== "owner") {
             setError("Only Owner can create Sales accounts.");
             return;
@@ -1163,14 +1312,14 @@ const App = () => {
 
         try {
             await apiFetch(`/api/suppliers/${supplierId}/staff/`, {
-            method: "POST",
-            body: {
-                full_name: name,
-                email,
-                password,
-                role_code: "sales",
-            },
-            userId,
+                method: "POST",
+                body: {
+                    full_name: name,
+                    email,
+                    password,
+                    role_code: "sales",
+                },
+                userId,
             });
 
             await loadSupplierStaff(userId, supplierId);
@@ -1179,7 +1328,7 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to create sales");
         }
-        };
+    };
 
 
     const removeManager = (id) => {
@@ -1221,14 +1370,14 @@ const App = () => {
 
         try {
             await apiFetch(`/api/orders/${id}/accept/`, {
-            method: "POST",
-            userId,
+                method: "POST",
+                userId,
             });
             await loadSupplierOrders(userId);
         } catch (err) {
             setError(err.message || "Failed to accept order");
         }
-        };
+    };
 
     const rejectOrder = async (id) => {
         if (!userId) {
@@ -1238,14 +1387,37 @@ const App = () => {
 
         try {
             await apiFetch(`/api/orders/${id}/reject/`, {
-            method: "POST",
-            userId,
+                method: "POST",
+                userId,
             });
             await loadSupplierOrders(userId);
         } catch (err) {
             setError(err.message || "Failed to reject order");
         }
-        };
+    };
+
+    const resolveComplaint = async (id) => {
+        // const complaintToResolve = escalatedComplaints.find(c => c.id == id);
+        // setResolvedComplaints(prev => [...prev, complaintToResolve]);
+        // setEscalatedComplaints(prev => prev.filter(c => c.id !== id));
+        // setMessage("Complaint resolved!");
+        // setTimeout(setMessage(""), 2000);
+
+        if (!currentUser || (currentUser.role !== "manager")) {
+            setError("Not authorized");
+            return;
+        }
+
+        try {
+            await apiFetch(`/api/incidents/${id}/resolve/`, {
+                method: "POST",
+                userId,
+            })
+            await loadComplaints(userId);
+        } catch (err) {
+            setError(err.message || "Failed to resolve complaint");
+        }
+    };
 
 
     /* ------------------------
@@ -1264,7 +1436,7 @@ const App = () => {
         setMessage("");
         await loadSupplierStaff(userId, supplierId);
         setView("users");
-        };
+    };
 
     const goToRequests = async () => {
         if (!supplierId) {
@@ -1275,7 +1447,7 @@ const App = () => {
         setMessage("");
         await loadSupplierLinks(supplierId);
         setView("requests");
-        };
+    };
     const goToOrders = async () => {
         if (!userId) {
             setError("User is not defined");
@@ -1285,7 +1457,18 @@ const App = () => {
         setMessage("");
         await loadSupplierOrders(userId);
         setView("orders");
-        };
+    };
+
+    const goToComplaints = async () => {
+        if (!userId) {
+            setError("User is not defined");
+            return;
+        }
+        setError("");
+        setMessage("");
+        await loadComplaints(userId);
+        setView("complaints");
+    }
 
 
     /* ------------------------
@@ -1385,6 +1568,7 @@ const App = () => {
                             goToUserManagement={goToUserManagement}
                             goToRequests={goToRequests}
                             goToOrders={goToOrders}
+                            goToComplaints={goToComplaints}
                         />
                     </div>
                 );
@@ -1413,6 +1597,21 @@ const App = () => {
                 />
             </div>
         );
+    }
+
+    if (isAuthenticated && view === "complaints") {
+        return (
+            <div>
+                <ComplaintsView
+                    escalatedComplaints={escalatedComplaints}
+                    resolveComplaint={resolveComplaint}
+                    resolvedComplaints={resolvedComplaints}
+                    complaintViewType={complaintViewType}
+                    setComplaintViewType={setComplaintViewType}
+                    setView={setView}
+                />
+            </div>
+        )
     }
 
 
