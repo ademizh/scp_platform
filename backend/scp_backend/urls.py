@@ -16,6 +16,8 @@ from api.views import (
     OrderAcceptView,
     OrderRejectView,
     SupplierDirectoryView,
+    SupplierStaffListCreateView,    
+    SupplierStaffDeactivateView, 
 )
 
 urlpatterns = [
@@ -41,6 +43,9 @@ urlpatterns = [
     path("api/orders/", OrderListCreateView.as_view()),
     path("api/orders/<int:pk>/accept/", OrderAcceptView.as_view()),
     path("api/orders/<int:pk>/reject/", OrderRejectView.as_view()),
-    path("api/suppliers/directory/", SupplierDirectoryView.as_view())
+    path("api/suppliers/directory/", SupplierDirectoryView.as_view()),
+    path("api/suppliers/<int:supplier_id>/staff/", SupplierStaffListCreateView.as_view()),
+    path("api/suppliers/staff/<int:pk>/deactivate/", SupplierStaffDeactivateView.as_view()),
+
 
 ]
