@@ -33,6 +33,8 @@ from .serializers import (
     OrderCreateSerializer,
     OrderSerializer,
     SupplierPublicSerializer,
+    SupplierStaffSerializer,      
+    SupplierStaffCreateSerializer,
 )
 
 
@@ -866,3 +868,141 @@ class SupplierDirectoryView(APIView):
         suppliers = Suppliers.objects.filter(is_active=True)
         serializer = SupplierPublicSerializer(suppliers, many=True)
         return Response(serializer.data)
+    
+# ---------- SUPPLIER STAFF (User Management) ----------
+
+class SupplierStaffListCreateView(APIView):
+    """
+    GET  /api/suppliers/<supplier_id>/staff/       – список активных сотрудников поставщика
+    POST /api/suppliers/<supplier_id>/staff/       – создать manager/sales
+
+    Только владелец (owner) может смотреть и создавать staff.
+    """
+
+    def _ensure_owner(self, user_id: int, supplier_id: int):
+        staff = (
+            SupplierStaff.objects
+            .select_related("role")
+            .filter(
+                supplier_id=supplier_id,
+                user_id=user_id,
+                is_active=True,
+            )
+            .first()
+        )
+        if not staff or staff.role.code != "owner":
+            return None
+        return staff
+
+    def get(self, request, supplier_id: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        owner_staff = self._ensure_owner(int_user_id, supplier_id)
+        if not owner_staff:
+            return Response(
+                {"detail": "Only owner can view supplier staff"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        qs = (
+            SupplierStaff.objects
+            .select_related("user", "role")
+            .filter(supplier_id=supplier_id, is_active=True)
+        )
+        serializer = SupplierStaffSerializer(qs, many=True)
+        return Response(serializer.data)
+
+    def post(self, request, supplier_id: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        owner_staff = self._ensure_owner(int_user_id, supplier_id)
+        if not owner_staff:
+            return Response(
+                {"detail": "Only owner can create staff"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = SupplierStaffCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        try:
+            role = SupplierStaffRoles.objects.get(code=data["role_code"])
+        except SupplierStaffRoles.DoesNotExist:
+            return Response(
+                {"detail": "Unknown role_code"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        with transaction.atomic():
+            user = Users.objects.create(
+                email=data["email"],
+                password_hash=data["password"],   # как в SupplierRegisterView
+                full_name=data["full_name"],
+                created_at=timezone.now(),
+                is_active=True,
+            )
+
+            staff = SupplierStaff.objects.create(
+                supplier_id=supplier_id,
+                user=user,
+                role=role,
+                is_active=True,
+            )
+
+        out = SupplierStaffSerializer(staff)
+        return Response(out.data, status=status.HTTP_201_CREATED)
+
+class SupplierStaffDeactivateView(APIView):
+    """
+    POST /api/suppliers/staff/<pk>/deactivate/
+
+    Только owner данного поставщика может деактивировать manager/sales.
+    """
+
+    def post(self, request, pk: int):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        try:
+            staff_to_remove = SupplierStaff.objects.select_related("supplier", "role").get(pk=pk)
+        except SupplierStaff.DoesNotExist:
+            return Response(
+                {"detail": "Staff not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        # ищем запись owner по тому же supplier
+        owner_staff = (
+            SupplierStaff.objects
+            .select_related("role")
+            .filter(
+                supplier=staff_to_remove.supplier,
+                user_id=int_user_id,
+                is_active=True,
+            )
+            .first()
+        )
+
+        if not owner_staff or owner_staff.role.code != "owner":
+            return Response(
+                {"detail": "Only owner can remove staff"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # запрещаем owner удалить сам себя, чтобы не потерять доступ
+        if staff_to_remove.user_id == int_user_id:
+            return Response(
+                {"detail": "Owner cannot remove themselves"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        staff_to_remove.is_active = False
+        staff_to_remove.save(update_fields=["is_active"])
+
+        return Response({"detail": "Staff deactivated"})
