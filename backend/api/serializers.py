@@ -78,6 +78,37 @@ class ProductSerializer(serializers.ModelSerializer):
         # Например, можно будет хранить в отдельной таблице.
         return None
 
+class SupplierStaffSerializer(serializers.ModelSerializer):
+    full_name = serializers.CharField(source="user.full_name", read_only=True)
+    email = serializers.EmailField(source="user.email", read_only=True)
+    role_code = serializers.CharField(source="role.code", read_only=True)
+    role_name = serializers.CharField(source="role.name", read_only=True)
+
+    class Meta:
+        model = SupplierStaff
+        fields = [
+            "id",
+            "supplier",
+            "user",
+            "full_name",
+            "email",
+            "role_code",
+            "role_name",
+            "is_active",
+        ]
+
+
+class SupplierStaffCreateSerializer(serializers.Serializer):
+    full_name = serializers.CharField(max_length=255)
+    email = serializers.EmailField()
+    password = serializers.CharField(write_only=True, min_length=4)
+    # мы создаём только manager / sales – owner создаётся при регистрации supplier
+    role_code = serializers.ChoiceField(choices=["manager", "sales"])
+
+    def validate_email(self, value):
+        if Users.objects.filter(email=value).exists():
+            raise serializers.ValidationError("User with this email already exists")
+        return value
 
 class ProductCreateUpdateSerializer(serializers.Serializer):
     """
@@ -130,7 +161,7 @@ class LoginSerializer(serializers.Serializer):
     email = serializers.EmailField()
     password = serializers.CharField()
     login_as = serializers.ChoiceField(
-        choices=["supplier", "consumer"],
+        choices=["supplier", "consumer", "sales"],
         required=False,
         allow_null=True,
     )

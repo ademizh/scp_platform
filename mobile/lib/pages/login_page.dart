@@ -24,7 +24,7 @@ class _LoginPageState extends State<LoginPage> {
   String? _error;
 
   // true = supplier, false = consumer
-  bool _isSupplier = true;
+ bool _isSales = true;
 
   Future<void> _login() async {
     setState(() {
@@ -33,7 +33,7 @@ class _LoginPageState extends State<LoginPage> {
     });
 
     try {
-      final loginAs = _isSupplier ? 'supplier' : 'consumer';
+      final loginAs = _isSales? 'sales' : 'consumer';
 
       
       final result = await ApiClient.instance.login(
@@ -95,12 +95,12 @@ class _LoginPageState extends State<LoginPage> {
                 children: [
                   Expanded(
                     child: RadioListTile<bool>(
-                      title: const Text('Supplier'),
+                      title: const Text('Sales'),
                       value: true,
-                      groupValue: _isSupplier,
+                      groupValue: _isSales,
                       onChanged: (v) {
                         setState(() {
-                          _isSupplier = v ?? true;
+                          _isSales = v ?? true;
                         });
                       },
                     ),
@@ -109,10 +109,10 @@ class _LoginPageState extends State<LoginPage> {
                     child: RadioListTile<bool>(
                       title: const Text('Consumer'),
                       value: false,
-                      groupValue: _isSupplier,
+                      groupValue: _isSales,
                       onChanged: (v) {
                         setState(() {
-                          _isSupplier = v ?? false;
+                          _isSales = v ?? false;
                         });
                       },
                     ),
