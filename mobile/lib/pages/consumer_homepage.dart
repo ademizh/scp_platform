@@ -732,72 +732,132 @@ Future<void> _placeOrder() async {
     );
   }
 
-  Widget _buildConsumerOrders() {
-    if (_consumerOrdersLoading && _consumerOrders.isEmpty) {
-      return const Center(child: CircularProgressIndicator());
-    }
+Widget _buildConsumerOrders() {
+  if (_consumerOrdersLoading && _consumerOrders.isEmpty) {
+    return const Center(child: CircularProgressIndicator());
+  }
 
-    if (_consumerOrdersError != null) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                'Failed to load orders:\n$_consumerOrdersError',
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              ElevatedButton(
-                onPressed: _loadConsumerOrders,
-                child: const Text('Retry'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
-
-    if (_consumerOrders.isEmpty) {
-      return const Center(
-        child: Text('You don\'t have any orders yet.'),
-      );
-    }
-
-    return RefreshIndicator(
-      onRefresh: _loadConsumerOrders,
-      child: ListView.builder(
-        physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: _consumerOrders.length,
-        itemBuilder: (context, index) {
-          final order = _consumerOrders[index];
-
-          return Card(
-            margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            child: ExpansionTile(
-              title: Text('Order #${order.id} — ${order.status.toUpperCase()}'),
-              subtitle: Text(
-                'Supplier: ${order.supplierName}\n'
-                'Total: ${order.totalAmount.toStringAsFixed(2)} ₸',
-              ),
-              children: order.items
-                  .map(
-                    (item) => ListTile(
-                      title: Text(item.productName),
-                      subtitle: Text(
-                        '${item.quantity} ${item.unitCode} × ${item.unitPrice.toStringAsFixed(2)} ₸',
-                      ),
-                      trailing: Text(
-                        '${item.lineTotal.toStringAsFixed(2)} ₸',
-                      ),
-                    ),
-                  )
-                  .toList(),
+  if (_consumerOrdersError != null) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              'Failed to load orders:\n$_consumerOrdersError',
+              textAlign: TextAlign.center,
             ),
-          );
-        },
+            const SizedBox(height: 16),
+            ElevatedButton(
+              onPressed: _loadConsumerOrders,
+              child: const Text('Retry'),
+            ),
+          ],
+        ),
       ),
     );
   }
+
+  if (_consumerOrders.isEmpty) {
+    return const Center(
+      child: Text('You don\'t have any orders yet.'),
+    );
+  }
+
+  return RefreshIndicator(
+    onRefresh: _loadConsumerOrders,
+    child: ListView.builder(
+      physics: const AlwaysScrollableScrollPhysics(),
+      itemCount: _consumerOrders.length,
+      itemBuilder: (context, index) {
+        final order = _consumerOrders[index];
+
+        return Card(
+          margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          child: ExpansionTile(
+            title: Text('Order #${order.id} — ${order.status.toUpperCase()}'),
+            subtitle: Text(
+              'Supplier: ${order.supplierName}\n'
+              'Total: ${order.totalAmount.toStringAsFixed(2)} ₸',
+            ),
+            children: [
+              // ORDER ITEMS LIST
+              ...order.items.map(
+                (item) => ListTile(
+                  title: Text(item.productName),
+                  subtitle: Text(
+                    '${item.quantity} ${item.unitCode} × ${item.unitPrice} ₸',
+                  ),
+                  trailing: Text('${item.lineTotal} ₸'),
+                ),
+              ),
+
+              // REPORT BUTTON
+              if (order.status == 'delivered' && !order.hasIncident)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  child: ElevatedButton.icon(
+                    icon: const Icon(Icons.report_problem, color: Colors.white),
+                    label: const Text("Report a Problem"),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red,
+                    ),
+                    onPressed: () => _openIncidentModal(order),
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
+    ),
+  );
+}
+
+  void _openIncidentModal(Order order) {
+  final TextEditingController controller = TextEditingController();
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (context) {
+      return Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text("Describe your problem", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            TextField(
+              controller: controller,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                hintText: "What went wrong?",
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton(
+              onPressed: () async {
+                final message = controller.text.trim();
+                if (message.isEmpty) return;
+
+                 final api = ApiClient.instance;
+                final incident = await api.createIncident(order.id, message);
+
+                if (incident != null) {
+                  Navigator.pop(context);
+                  setState(() {});
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text("Complaint submitted successfully")),
+                  );
+                }
+              },
+              child: const Text("Submit"),
+            ),
+          ],
+        ),
+      );
+    },
+  );
+}
+
 }

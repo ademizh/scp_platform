@@ -7,6 +7,7 @@ import 'package:http/http.dart' as http;
 const String _webBaseUrl = 'http://127.0.0.1:8000';
 const String _androidEmuBaseUrl = 'http://10.0.2.2:8000';
 
+
 final String _baseUrl = kIsWeb ? _webBaseUrl : _androidEmuBaseUrl;
 
 /// ---------- Auth / Session models ----------
@@ -41,6 +42,7 @@ class ConsumerLink {
   final int supplierId;
   final String supplierName;
   final String status;
+  
 
   ConsumerLink({
     required this.id,
@@ -197,6 +199,38 @@ class OrderItem {
     );
   }
 }
+class Incident {
+  final int id;
+  final int orderId;
+  final int consumerId;
+  final int supplierId;
+  final String message;
+  final String status;
+  final DateTime createdAt;
+
+  Incident({
+    required this.id,
+    required this.orderId,
+    required this.consumerId,
+    required this.supplierId,
+    required this.message,
+    required this.status,
+    required this.createdAt,
+  });
+
+  factory Incident.fromJson(Map<String, dynamic> json) {
+    return Incident(
+      id: json['id'],
+      orderId: json['order'],
+      consumerId: json['consumer'],
+      supplierId: json['supplier'],
+      message: json['message'],
+      status: json['status'],
+      createdAt: DateTime.parse(json['created_at']),
+    );
+  }
+}
+
 class Supplier {
   final int id;
   final String name;
@@ -218,31 +252,41 @@ class Order {
   final String? consumerName;
   final DateTime createdAt;
   final List<OrderItem> items;
+  final bool hasIncident;
+  final String? incidentStatus; // "open", "in_progress", "resolved", "escalated"
+  final int? incidentId;
 
   Order({
-    required this.id,
-    required this.status,
-    required this.totalAmount,
-    required this.supplierName,
-    required this.consumerName,
-    required this.createdAt,
-    required this.items,
+  required this.id,
+  required this.status,
+  required this.totalAmount,
+  this.supplierName,
+  this.consumerName,
+  required this.createdAt,
+  required this.items,
+  this.hasIncident = false,
+  this.incidentStatus,
+  this.incidentId,
+
+
   });
 
-  factory Order.fromJson(Map<String, dynamic> json) {
-    print('Parsing Order ID: ${json['id']}, Amount: ${json['total_amount']}');
-    return Order(
-      id: json['id'] as int,
-      status: json['status'] as String,
-      totalAmount: _asDouble(json['total_amount']),
-      supplierName: json['supplier_name'] as String?,
-      consumerName: json['consumer_name'] as String?,
-      createdAt: DateTime.parse(json['created_at'] as String),
-      items: (json['items'] as List<dynamic>)
-          .map((e) => OrderItem.fromJson(e as Map<String, dynamic>))
-          .toList(),
-    );
-  }
+factory Order.fromJson(Map<String, dynamic> json) {
+  return Order(
+    id: json['id'],
+    status: json['status'],
+    totalAmount: (json['total_amount'] ?? 0).toDouble(),
+    supplierName: json['supplier_name'],
+    consumerName: json['consumer_name'],
+    createdAt: DateTime.parse(json['created_at']),
+    items: (json['items'] as List<dynamic>).map((e) => OrderItem.fromJson(e)).toList(),
+    hasIncident: json['has_incident'] ?? false,
+    incidentStatus: json['incident_status'],
+    incidentId: json['incident_id'],
+  );
+}
+
+
 }
 
 /// ---------- ApiClient ----------
@@ -250,6 +294,58 @@ class Order {
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
+  //static const String baseUrl = "http://YOUR_SERVER/api";
+
+  // CREATE complaint (consumer)
+Future<Incident?> createIncident(int orderId, String message) async {
+  final response = await http.post(
+    Uri.parse('$_baseUrl/incidents/'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({
+      'order': orderId,
+      'message': message,
+    }),
+  );
+
+  if (response.statusCode == 201) {
+    return Incident.fromJson(jsonDecode(response.body));
+  }
+  return null;
+}
+
+// GET supplier incidents
+Future<List<Incident>> getSupplierIncidents(int supplierId) async {
+  final response = await http.get(
+    Uri.parse('$_baseUrl/supplier/$supplierId/incidents/'),
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body) as List;
+    return data.map((e) => Incident.fromJson(e)).toList();
+  }
+  return [];
+}
+
+// UPDATE status
+Future<bool> updateIncidentStatus(int id, String status) async {
+  final response = await http.patch(
+    Uri.parse('$_baseUrl/incidents/$id/status/'),
+    headers: {'Content-Type': 'application/json'},
+    body: jsonEncode({'status': status}),
+  );
+
+  return response.statusCode == 200;
+}
+
+// ESCALATE
+Future<bool> escalateIncident(int id) async {
+  final response = await http.post(
+    Uri.parse('$_baseUrl/incidents/$id/escalate/'),
+  );
+  return response.statusCode == 200;
+}
+
+
 
   // -------- Auth --------
 
@@ -578,6 +674,7 @@ Future<List<Order>> getConsumerOrders({
         .map((e) => SupplierInfo.fromJson(e as Map<String, dynamic>))
         .toList();
   }
+  
 }
 
 

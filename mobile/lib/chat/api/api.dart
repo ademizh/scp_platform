@@ -11,6 +11,7 @@ import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:flyer_chat_image_message/flyer_chat_image_message.dart';
 import 'package:flyer_chat_text_message/flyer_chat_text_message.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:mobile/pages/supplier_incidents_page.dart';
 
 // LOCAL PROJECT CHAT FILES
 import 'package:mobile/chat/api/api_service.dart';
@@ -97,6 +98,18 @@ class ApiState extends State<Api> {
       appBar: AppBar(
         leading: BackButton(color: Colors.white),
         title: Text(widget.chatPartnerName ?? "Chat"),
+        actions: [
+  IconButton(
+    icon: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+    onPressed: () {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (_) => SupplierIncidentsPage()),
+      );
+    },
+  ),
+],
+
       ),
       body: Stack(
         children: [

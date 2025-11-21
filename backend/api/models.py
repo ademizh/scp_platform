@@ -177,6 +177,8 @@ class Incidents(models.Model):
     assigned_to = models.ForeignKey('Users', models.DO_NOTHING, db_column='assigned_to', related_name='incidents_assigned_to_set', blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     archived_at = models.DateTimeField(blank=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
 
     class Meta:
         managed = False
