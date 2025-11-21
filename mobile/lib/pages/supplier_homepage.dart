@@ -4,6 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:mobile/services/api_client.dart';
 import 'package:mobile/services/session.dart';
 import 'package:mobile/pages/login_page.dart';
+import 'package:mobile/pages/supplier_chat_list_page.dart';
+
+
 
 class SupplierHomePage extends StatefulWidget {
   final int userId;
@@ -197,31 +200,56 @@ class _SupplierHomePageState extends State<SupplierHomePage> {
           _buildSupplierOrders(),
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _supplierTabIndex,
-        onTap: (index) {
-          setState(() {
-            _supplierTabIndex = index;
-          });
-          if (index == 0) {
-            _loadSupplierLinks();
-          } else if (index == 1) {
-            _loadSupplierOrders();
-          }
-        },
-        items: [
-          const BottomNavigationBarItem(
-            icon: Icon(Icons.link),
-            label: 'Links',
+      bottomNavigationBar: Theme(
+  data: Theme.of(context).copyWith(
+    iconTheme: const IconThemeData(color: Colors.white),
+    canvasColor: Colors.black,
+    primaryColor: Colors.white,
+    splashColor: Colors.white,
+    highlightColor: Colors.white,
+    textTheme: const TextTheme(
+      bodyMedium: TextStyle(color: Colors.white),
+    ),
+  ),
+  child: BottomNavigationBar(
+    backgroundColor: Colors.black,
+    selectedItemColor: Colors.blue,
+    unselectedItemColor: Colors.white70,
+    currentIndex: _supplierTabIndex,
+
+    onTap: (index) async {
+      if (index == 2) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => const SupplierChatListPage(),
           ),
-          BottomNavigationBarItem(
-            icon: const Icon(Icons.receipt_long),
-            label: newOrdersCount > 0
-                ? 'Orders ($newOrdersCount)'
-                : 'Orders',
-          ),
-        ],
+        );
+        return;
+      }
+
+      setState(() => _supplierTabIndex = index);
+    },
+
+    items: [
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.link),
+        label: 'Links',
       ),
+      BottomNavigationBarItem(
+        icon: const Icon(Icons.receipt_long),
+        label: newOrdersCount > 0
+            ? 'Orders ($newOrdersCount)'
+            : 'Orders',
+      ),
+      const BottomNavigationBarItem(
+        icon: Icon(Icons.chat_bubble),
+        label: 'Chat',
+      ),
+    ],
+  ),
+),
+
     );
   }
 

@@ -6,7 +6,7 @@ import 'package:mobile/services/session.dart';
 import 'package:mobile/pages/login_page.dart';
 import 'package:mobile/pages/supplier_directory_page.dart';
 import 'package:mobile/pages/product_card.dart';
-
+import 'package:mobile/pages/consumer_chat_list_page.dart';
 class ConsumerHomePage extends StatefulWidget {
   final int userId;
 
@@ -412,37 +412,93 @@ Future<void> _placeOrder() async {
           _buildConsumerOrders(), // My orders
         ],
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _consumerTabIndex,
-        onTap: (index) async {
-          setState(() {
-            _consumerTabIndex = index;
-          });
+      bottomNavigationBar: Theme(
+  data: Theme.of(context).copyWith(
+    iconTheme: const IconThemeData(color: Colors.white),
+    canvasColor: Colors.black,        // background of the bar
+    primaryColor: Colors.white,
+    splashColor: Colors.white,
+    highlightColor: Colors.white,
+    textTheme: const TextTheme(
+      bodyMedium: TextStyle(color: Colors.white),
+    ),
+  ),
+  child: BottomNavigationBar(
+    backgroundColor: Colors.black,
+    selectedItemColor: Colors.blue,
+    unselectedItemColor: Colors.white70,
+    currentIndex: _consumerTabIndex,
 
-          if (index == 0) {
-            await _loadMyApprovedLinks();
-            if (_myLinkedSupplierIds.isNotEmpty) {
-              await _loadCatalog();
-            }
-          } else if (index == 2) {
-            await _loadConsumerOrders();
+    onTap: (index) async {
+      if (index == 3) {   // CHAT TAB INDEX
+        final consumerId = await SessionService.instance.getConsumerId();
+
+        if (consumerId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Consumer ID not found")),
+          );
+          return;
+        }
+
+        try {
+          final links =
+              await ApiClient.instance.getConsumerLinks(consumerId: consumerId);
+
+          final approved =
+              links.where((l) => l.status == "accepted").toList();
+
+          if (approved.isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text("No approved suppliers. Chat unavailable."),
+              ),
+            );
+            return;
           }
-        },
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.store),
-            label: 'Catalog',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Cart',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.receipt_long),
-            label: 'My Orders',
-          ),
-        ],
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => ConsumerChatListPage(
+                consumerId: consumerId,
+                suppliers: approved,
+              ),
+            ),
+          );
+
+          return;
+        } catch (e) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text("Error: $e")),
+          );
+          return;
+        }
+      }
+
+      setState(() => _consumerTabIndex = index);
+    },
+
+    items: const [
+      BottomNavigationBarItem(
+        icon: Icon(Icons.store),
+        label: 'Catalog',
       ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.shopping_cart),
+        label: 'Cart',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.receipt_long),
+        label: 'My Orders',
+      ),
+      BottomNavigationBarItem(
+        icon: Icon(Icons.chat_bubble),
+        label: 'Chat',
+      ),
+    ],
+  ),
+),
+
     );
   }
 

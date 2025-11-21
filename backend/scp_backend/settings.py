@@ -41,6 +41,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "api", 
     "corsheaders",
+    "channels",
 ]
 
 MIDDLEWARE = [
@@ -90,6 +91,12 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "scp_backend.wsgi.application"
+ASGI_APPLICATION = "scp_backend.asgi.application"
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels.layers.InMemoryChannelLayer",
+    }}
 
 
 # Database
@@ -101,7 +108,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "NAME": "scp",          
         "USER": "postgres",
-        "PASSWORD": "1704",
+        "PASSWORD": "050921",
         "HOST": "localhost",
         "PORT": "5432",
         "OPTIONS": {
