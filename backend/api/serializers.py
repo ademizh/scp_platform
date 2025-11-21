@@ -257,3 +257,5 @@ class SupplierPublicSerializer(serializers.ModelSerializer):
     class Meta:
         model = Suppliers
         fields = ['id', 'name', 'is_active']
+
+        

@@ -137,9 +137,9 @@ class Product {
       sku: json['sku'] as String,
       name: json['name'] as String,
       unitCode: json['unit_code'] as String,
-      price: (json['price'] as num?)?.toDouble(),
-      stock: (json['stock'] as num).toDouble(),
-      discount: (json['discount'] as num?)?.toDouble() ?? 0,
+      price: _asDouble(json['price'] as num?),
+      stock: _asDouble(json['stock'] as num),
+      discount: _asDouble(json['discount'] as num?),
       deliveryTime: json['delivery_time'] as int?,
     );
   }
@@ -193,9 +193,9 @@ class OrderItem {
       productId: json['product_id'] as int,
       productName: json['product_name'] as String,
       unitCode: json['unit_code'] as String,
-      quantity: double.parse(json['quantity'].toString()),
-      unitPrice: double.parse(json['unit_price'].toString()),
-      lineTotal: double.parse(json['line_total'].toString()),
+      quantity: qty,
+      unitPrice: unitPrice,
+      lineTotal: lineTotal,
     );
   }
 }
@@ -275,7 +275,7 @@ factory Order.fromJson(Map<String, dynamic> json) {
   return Order(
     id: json['id'],
     status: json['status'],
-    totalAmount: (json['total_amount'] ?? 0).toDouble(),
+    totalAmount: _asDouble(json['total_amount']),
     supplierName: json['supplier_name'],
     consumerName: json['consumer_name'],
     createdAt: DateTime.parse(json['created_at']),
