@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:mobile/chat/api/api.dart';
-import 'package:dio/dio.dart';
-import 'package:mobile/services/api_client.dart';
+import 'package:mobile/chat/screens/chat_screen.dart';
+import 'package:mobile/services/api_client.dart'; 
 
 class ConsumerChatListPage extends StatelessWidget {
   final int consumerId;
@@ -16,7 +15,7 @@ class ConsumerChatListPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Your Suppliers")),
+      appBar: AppBar(title: const Text("Your Sales")),
       body: ListView.builder(
         itemCount: suppliers.length,
         itemBuilder: (_, index) {
@@ -27,18 +26,13 @@ class ConsumerChatListPage extends StatelessWidget {
             subtitle: Text("Supplier ID: ${s.supplierId}"),
             trailing: const Icon(Icons.chat_bubble),
             onTap: () {
-              final dio = Dio(); // must be new
-
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => Api(
-                    currentUserId: consumerId.toString(),
-                    chatId:
-                        "supplier-${s.supplierId}-consumer-$consumerId",
-                    chatPartnerName: s.supplierName,
-                    initialMessages: const [],
-                    dio: dio,
+                  builder: (_) => ChatScreen(
+                    chatId: "supplier-${s.supplierId}-consumer-$consumerId",
+                    authorId: consumerId.toString(),
+                    isSupplier: false, 
                   ),
                 ),
               );

@@ -258,4 +258,16 @@ class SupplierPublicSerializer(serializers.ModelSerializer):
         model = Suppliers
         fields = ['id', 'name', 'is_active']
 
-        
+from .models import (
+    Orders, OrderItems, Suppliers, Products, Complaint  # ← ADD HERE
+)
+class ComplaintSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Complaint
+        fields = "__all__"
+
+class ComplaintCreateSerializer(serializers.Serializer):
+    order_id = serializers.IntegerField()
+    message = serializers.CharField()
+
+

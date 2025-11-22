@@ -336,3 +336,14 @@ class Users(models.Model):
     class Meta:
         managed = False
         db_table = 'users'
+
+class Complaint(models.Model):
+    order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name="complaints")
+    consumer = models.ForeignKey(Consumers, on_delete=models.CASCADE)
+    message = models.TextField()
+    status = models.CharField(max_length=20, default="pending")  # pending / resolved / to_manager
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = "complaints"
+

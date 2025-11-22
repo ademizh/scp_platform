@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
+
 import 'package:mobile/services/api_client.dart';
 import 'package:mobile/services/session.dart';
-import 'package:mobile/chat/api/api.dart';
-import 'package:dio/dio.dart';
+import '../../chat/screens/chat_screen.dart'; // ← новый путь к чату
 
 class SupplierChatListPage extends StatefulWidget {
   const SupplierChatListPage({super.key});
@@ -25,9 +25,7 @@ class _SupplierChatListPageState extends State<SupplierChatListPage> {
   Future<void> load() async {
     supplierId = await SessionService.instance.getSupplierId();
     if (supplierId == null) {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
       return;
     }
 
@@ -37,13 +35,9 @@ class _SupplierChatListPageState extends State<SupplierChatListPage> {
 
       approved = links.where((l) => l.status == "accepted").toList();
 
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     } catch (e) {
-      setState(() {
-        loading = false;
-      });
+      setState(() => loading = false);
     }
   }
 
@@ -57,9 +51,7 @@ class _SupplierChatListPageState extends State<SupplierChatListPage> {
 
     if (approved.isEmpty) {
       return const Scaffold(
-        body: Center(
-          child: Text("No approved consumers to chat with."),
-        ),
+        body: Center(child: Text("No approved consumers to chat with.")),
       );
     }
 
@@ -78,12 +70,10 @@ class _SupplierChatListPageState extends State<SupplierChatListPage> {
               Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) => Api(
-                    currentUserId: supplierId.toString(),
-                    chatId:
-                        "supplier-$supplierId-consumer-${link.consumerId}",
-                    initialMessages: const [],
-                    dio: Dio(),
+                  builder: (_) => ChatScreen(
+                    chatId: "supplier-$supplierId-consumer-${link.consumerId}",
+                    authorId: supplierId.toString(),
+                    isSupplier: true, 
                   ),
                 ),
               );

@@ -5,6 +5,13 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from decimal import Decimal, ROUND_HALF_UP
+import json, time, uuid
+from .models import Complaint
+from .serializers import ComplaintSerializer, ComplaintCreateSerializer
+from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
+
+
 
 from .models import (
     Products,
@@ -1006,3 +1013,93 @@ class SupplierStaffDeactivateView(APIView):
         staff_to_remove.save(update_fields=["is_active"])
 
         return Response({"detail": "Staff deactivated"})
+    
+import os
+from django.core.files.storage import default_storage
+from django.conf import settings
+
+MESSAGES = {}
+
+@csrf_exempt
+def messages_list(request, chat_id):
+    if request.method == "GET":
+        return JsonResponse(list(MESSAGES.get(chat_id, [])), safe=False)
+
+    if request.method == "POST":
+        # text or file messages
+        if request.FILES:
+            uploaded = request.FILES["file"]
+            filename = f"{uuid.uuid4()}_{uploaded.name}"
+            path = os.path.join("chat_uploads", filename)
+
+            full_path = default_storage.save(path, uploaded)
+            file_url = settings.MEDIA_URL + full_path
+
+            msg = {
+                "id": str(uuid.uuid4()),
+                "authorId": request.POST.get("authorId"),
+                "text": None,
+                "fileUrl": file_url,
+                "createdAt": int(time.time() * 1000),
+            }
+
+        else:
+            body = json.loads(request.body)
+            msg = {
+                "id": str(uuid.uuid4()),
+                "authorId": body["authorId"],
+                "text": body["text"],
+                "fileUrl": None,
+                "createdAt": int(time.time() * 1000),
+            }
+
+        MESSAGES.setdefault(chat_id, []).append(msg)
+        return JsonResponse(msg)
+
+
+class ComplaintCreateView(APIView):
+    """
+    POST /api/incidents/
+    Consumer sends complaint about an order.
+    """
+
+    def post(self, request):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        consumer_user = (
+            ConsumerUsers.objects.filter(user_id=int_user_id, is_active=True)
+            .select_related("consumer")
+            .first()
+        )
+
+        if not consumer_user:
+            return Response(
+                {"detail": "User is not a consumer"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        serializer = ComplaintCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        data = serializer.validated_data
+
+        # Проверяем, что заказ принадлежит этому потребителю
+        try:
+            order = Orders.objects.get(id=data["order_id"], consumer=consumer_user.consumer)
+        except Orders.DoesNotExist:
+            return Response(
+                {"detail": "Order not found"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        complaint = Complaint.objects.create(
+            order=order,
+            consumer=consumer_user.consumer,
+            message=data["message"],
+            status="pending",
+        )
+
+        return Response(ComplaintSerializer(complaint).data, status=status.HTTP_201_CREATED)

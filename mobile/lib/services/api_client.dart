@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:mobile/services/session.dart';
+
+
+
 // Base URLs for different platforms
 const String _webBaseUrl = 'http://127.0.0.1:8000';
 const String _androidEmuBaseUrl = 'http://10.0.2.2:8000';
@@ -17,12 +21,16 @@ class LoginResult {
   final List<String> roles;
   final int? supplierId;
   final int? consumerId;
+  final String? token; 
+
 
   LoginResult({
     required this.userId,
     required this.roles,
     this.supplierId,
     this.consumerId,
+    required this.token,
+
   });
 
   factory LoginResult.fromJson(Map<String, dynamic> json) {
@@ -31,6 +39,7 @@ class LoginResult {
       roles: (json['roles'] as List<dynamic>).map((e) => e.toString()).toList(),
       supplierId: json['supplier_id'] as int?,
       consumerId: json['consumer_id'] as int?,
+      token: json['token'],
     );
   }
 }
@@ -294,56 +303,89 @@ factory Order.fromJson(Map<String, dynamic> json) {
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
-  //static const String baseUrl = "http://YOUR_SERVER/api";
+  
+
+  /// Helper to generate authenticated headers
+  Future<Map<String, String>> _getAuthHeaders({String contentType = 'application/json'}) async {
+    final token = await SessionService.instance.getToken();
+    final headers = <String, String>{};
+    if (contentType.isNotEmpty) {
+      headers['Content-Type'] = contentType;
+    }
+    if (token != null) {
+      headers['Authorization'] = 'Token $token';
+    } else {
+      debugPrint("Warning: Authentication token is missing.");
+    }
+    return headers;
+  }
+
 
   // CREATE complaint (consumer)
-Future<Incident?> createIncident(int orderId, String message) async {
-  final response = await http.post(
-    Uri.parse('$_baseUrl/incidents/'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'order': orderId,
-      'message': message,
-    }),
-  );
+  Future<bool> createIncident(int orderId, String message) async {
+    final headers = await _getAuthHeaders();
+    
+    // Check if the Authorization header was successfully set
+    if (!headers.containsKey('Authorization')) {
+      return false; 
+    }
 
-  if (response.statusCode == 201) {
-    return Incident.fromJson(jsonDecode(response.body));
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/incidents/'),
+      headers: headers,
+      body: jsonEncode({
+        'order_id': orderId,
+        'message': message,
+      }),
+    );
+
+    return response.statusCode == 201;
   }
-  return null;
-}
 
-// GET supplier incidents
-Future<List<Incident>> getSupplierIncidents(int supplierId) async {
-  final response = await http.get(
-    Uri.parse('$_baseUrl/supplier/$supplierId/incidents/'),
-  );
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body) as List;
-    return data.map((e) => Incident.fromJson(e)).toList();
+  // GET supplier incidents
+  Future<List<Incident>> getSupplierIncidents(int supplierId) async {
+    // 🟢 FIX 1: Add authentication token to headers
+    final headers = await _getAuthHeaders(contentType: ''); 
+
+    final response = await http.get(
+      // 🟢 FIX 2: Corrected URL to include '/api/' prefix
+      Uri.parse('$_baseUrl/api/supplier/$supplierId/incidents/'), 
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final data = jsonDecode(response.body) as List;
+      return data.map((e) => Incident.fromJson(e)).toList();
+    }
+    return [];
   }
-  return [];
-}
 
-// UPDATE status
-Future<bool> updateIncidentStatus(int id, String status) async {
-  final response = await http.patch(
-    Uri.parse('$_baseUrl/incidents/$id/status/'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({'status': status}),
-  );
+  // UPDATE status
+  Future<bool> updateIncidentStatus(int id, String status) async {
+    // 🟢 FIX 3: Add authentication token to headers
+    final headers = await _getAuthHeaders(); 
 
-  return response.statusCode == 200;
-}
+    final response = await http.patch(
+      Uri.parse('$_baseUrl/api/incidents/$id/status/'),
+      headers: headers,
+      body: jsonEncode({'status': status}),
+    );
 
-// ESCALATE
-Future<bool> escalateIncident(int id) async {
-  final response = await http.post(
-    Uri.parse('$_baseUrl/incidents/$id/escalate/'),
-  );
-  return response.statusCode == 200;
-}
+    return response.statusCode == 200;
+  }
+
+  // ESCALATE
+  Future<bool> escalateIncident(int id) async {
+    // 🟢 FIX 4: Add authentication token to headers
+    final headers = await _getAuthHeaders();
+
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/incidents/$id/escalate/'),
+      headers: headers,
+    );
+    return response.statusCode == 200;
+  }
 
 
 
@@ -674,8 +716,22 @@ Future<List<Order>> getConsumerOrders({
         .map((e) => SupplierInfo.fromJson(e as Map<String, dynamic>))
         .toList();
   }
-  
+  // GET consumer incidents
+Future<List<Incident>> getConsumerIncidents() async {
+  final headers = await _getAuthHeaders(contentType: '');
+
+  final response = await http.get(
+    Uri.parse('$_baseUrl/api/consumer/incidents/'),
+    headers: headers,
+  );
+
+  if (response.statusCode == 200) {
+    final data = jsonDecode(response.body) as List;
+    return data.map((e) => Incident.fromJson(e)).toList();
+  }
+
+  return [];
 }
 
-
-
+  
+}

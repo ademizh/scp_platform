@@ -4,21 +4,24 @@ from time import time
 
 class ChatConsumer(AsyncWebsocketConsumer):
 
-    async def connect(self):
-        qs = self.scope["query_string"].decode()
-        params = dict(x.split("=") for x in qs.split("&") if "=" in x)
+   async def connect(self):
+    # chat_id from URL
+    self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
 
-        self.chat_id = params.get("chatId")
-        self.author_id = params.get("authorId")
+    # authorId from query parameter
+    qs = self.scope["query_string"].decode()
+    params = dict(x.split("=") for x in qs.split("&") if "=" in x)
+    self.author_id = params.get("authorId")
 
-        self.room_group_name = f"chat_{self.chat_id}"
+    self.room_group_name = f"chat_{self.chat_id}"
 
-        await self.channel_layer.group_add(
-            self.room_group_name,
-            self.channel_name
-        )
+    await self.channel_layer.group_add(
+        self.room_group_name,
+        self.channel_name
+    )
 
-        await self.accept()
+    await self.accept()
+
 
     async def disconnect(self, code):
         await self.channel_layer.group_discard(
