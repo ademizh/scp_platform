@@ -122,7 +122,7 @@ void _showComplaintForm(BuildContext context) {
                       return;
                     }
                     
-                    // API Call
+                    
                     final api = ApiClient.instance;
                     final rawUserId = await SessionService.instance.getUserId();
                     if (rawUserId == null) return;
@@ -164,9 +164,7 @@ appBar: AppBar(
     IconButton(
       icon: const Icon(Icons.report_problem_outlined),
       onPressed: () async {
-        // ==========================
-        //   SUPPLIER → open list
-        // ==========================
+        
         if (widget.isSupplier) {
           Navigator.push(
             context,
@@ -177,10 +175,7 @@ appBar: AppBar(
           return;
         }
 
-        // ==========================
-        //   CONSUMER → open COMPLAINT FORM
-        // ==========================
-
+     
         showModalBottomSheet(
                 context: context,
                 shape: const RoundedRectangleBorder(
@@ -192,22 +187,22 @@ appBar: AppBar(
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         const SizedBox(height: 10),
-                        // Option 1: Submit New
+                       
                         ListTile(
                           leading: const Icon(Icons.add_circle_outline, color: Colors.red),
                           title: const Text("Submit New Complaint"),
                           onTap: () {
-                            Navigator.pop(ctx); // Close menu
-                            _showComplaintForm(context); // Open the form helper
+                            Navigator.pop(ctx); 
+                            _showComplaintForm(context); 
                           },
                         ),
                         const Divider(),
-                        // Option 2: View History (🟢 THIS IS THE NEW PART)
+                        
                         ListTile(
                           leading: const Icon(Icons.history, color: Colors.blue),
                           title: const Text("View My Complaints"),
                           onTap: () {
-                            Navigator.pop(ctx); // Close menu
+                            Navigator.pop(ctx); 
                             Navigator.push(
                               context,
                               MaterialPageRoute(
@@ -230,7 +225,7 @@ appBar: AppBar(
       // Body Layout
       body: Column(
         children: [
-          // 1. THE COMPLAINT HEADER
+          
           if (widget.incidentDescription != null)
             Container(
               width: double.infinity,
@@ -251,7 +246,7 @@ appBar: AppBar(
                 ],
               ),
             ),
-          // 2. YOUR CHAT WIDGET (Wrapped in Expanded)
+          
           Expanded(
             child: Chat(
               chatController: _controller,

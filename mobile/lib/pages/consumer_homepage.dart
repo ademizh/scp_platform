@@ -22,20 +22,20 @@ class ConsumerHomePage extends StatefulWidget {
 class _ConsumerHomePageState extends State<ConsumerHomePage> {
   bool _initialLoading = true;
 
-  // links
+  
   int _userId = 0;
   List<int> _myLinkedSupplierIds = [];
   bool _linksLoading = false;
   String? _linksError;
   List<ConsumerLink> _consumerLinks = [];
-  // catalog
+  
   int _consumerTabIndex = 0;
   bool _catalogLoading = false;
   String? _catalogError;
   List<Product> _catalog = [];
-  final Map<int, double> _cart = {}; // productId -> quantity
+  final Map<int, double> _cart = {}; 
 
-  // orders
+  
   bool _placingOrder = false;
   bool _consumerOrdersLoading = false;
   String? _consumerOrdersError;
@@ -48,8 +48,7 @@ class _ConsumerHomePageState extends State<ConsumerHomePage> {
   }
 
 Future<void> _init() async {
-    setState(() => _initialLoading = true); // Начинаем загрузку
-
+    setState(() => _initialLoading = true); 
     try {
       final uid = await SessionService.instance.getUserId();
 
@@ -57,10 +56,10 @@ Future<void> _init() async {
         setState(() => _userId = uid);
         print('✅ Consumer Logged in as ID: $_userId');
 
-        // 1. Загружаем список друзей
+        
         await _loadMyApprovedLinks();
 
-        // 2. Если друзья есть — грузим каталог
+        
         if (_myLinkedSupplierIds.isNotEmpty) {
           await _loadCatalog();
         }
@@ -70,7 +69,7 @@ Future<void> _init() async {
     } catch (e) {
       print('Error in _init: $e');
     } finally {
-      // ВАЖНО: В любом случае (даже если ошибка) убираем загрузку
+    
       if (mounted) {
         setState(() {
           _initialLoading = false;
@@ -149,7 +148,6 @@ Future<void> _init() async {
 
   void _addToCart(Product product) {
     setState(() {
-      // Если в корзине уже есть товар, проверяем, что он от того же поставщика
       if (_cart.isNotEmpty) {
         final existingProductId = _cart.keys.first;
         final existingProduct = _findProduct(existingProductId);
@@ -266,7 +264,7 @@ Future<void> _placeOrder() async {
   });
 
   try {
-    // 1) Получаем consumerId из сессии
+   
     final consumerId = await SessionService.instance.getConsumerId();
     if (consumerId == null) {
       if (!mounted) return;
@@ -278,7 +276,7 @@ Future<void> _placeOrder() async {
       return;
     }
 
-    // 2) Определяем supplierId по первому товару в корзине
+  
     int? supplierId;
     for (final entry in _cart.entries) {
       final product = _findProduct(entry.key);
@@ -286,7 +284,7 @@ Future<void> _placeOrder() async {
 
       supplierId ??= product.supplierId;
 
-      // Дополнительная защита: если вдруг в корзине разные suppliers
+     
       if (product.supplierId != supplierId) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -309,7 +307,7 @@ Future<void> _placeOrder() async {
       return;
     }
 
-    // 3) Проверяем, что с этим поставщиком есть accepted-link
+    
     if (!_myLinkedSupplierIds.contains(supplierId)) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -321,7 +319,7 @@ Future<void> _placeOrder() async {
       return;
     }
 
-    // 4) Собираем позиции заказа
+    
     final items = _cart.entries
         .map(
           (e) => OrderItemInput(
@@ -331,7 +329,7 @@ Future<void> _placeOrder() async {
         )
         .toList();
 
-    // 5) Отправляем заказ на бэкенд
+    
     final order = await ApiClient.instance.createOrder(
       userId: widget.userId,
       items: items,
@@ -339,7 +337,7 @@ Future<void> _placeOrder() async {
 
     if (!mounted) return;
 
-    // 6) Чистим корзину и обновляем список заказов
+   
     setState(() {
       _cart.clear();
     });
@@ -351,7 +349,7 @@ Future<void> _placeOrder() async {
       SnackBar(content: Text('Order #${order.id} created')),
     );
 
-    // 7) Переключаемся на вкладку "My orders"
+    
     setState(() {
       _consumerTabIndex = 2;
     });
@@ -382,15 +380,15 @@ Future<void> _placeOrder() async {
         actions: [
           IconButton(
             onPressed: () async {
-              // Открываем список поставщиков
+              
               await Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (_) => const SupplierDirectoryPage(),
                 ),
               );
-              // После возврата обновляем линки
+             
               await _loadMyApprovedLinks();
-              // Если появились accepted-линки — грузим каталог
+              
               if (_myLinkedSupplierIds.isNotEmpty) {
                 await _loadCatalog();
               }
@@ -521,7 +519,7 @@ Future<void> _placeOrder() async {
       );
     }
 
-    // Есть линк-запросы, но ни одного accepted
+ 
     if (_myLinkedSupplierIds.isEmpty && _consumerLinks.isNotEmpty) {
       return ListView(
         padding: const EdgeInsets.all(12),
@@ -541,7 +539,7 @@ Future<void> _placeOrder() async {
       );
     }
 
-    // Полностью нет линков → старый экран "Find suppliers"
+   
     if (_myLinkedSupplierIds.isEmpty) {
       return Center(
         child: Column(
@@ -782,7 +780,7 @@ Widget _buildConsumerOrders() {
               'Total: ${order.totalAmount.toStringAsFixed(2)} ₸',
             ),
             children: [
-              // ORDER ITEMS LIST
+              
               ...order.items.map(
                 (item) => ListTile(
                   title: Text(item.productName),
@@ -793,7 +791,7 @@ Widget _buildConsumerOrders() {
                 ),
               ),
 
-              // REPORT BUTTON
+              
               if (order.status == 'delivered' && !order.hasIncident)
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 16),

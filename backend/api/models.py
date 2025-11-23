@@ -337,13 +337,7 @@ class Users(models.Model):
         managed = False
         db_table = 'users'
 
-# backend/api/models.py
 
-# ... other models (Users, Products, Orders, etc.) ...
-
-# DELETE the class Complaint(...) entirely!
-
-# KEEP this new class:
 class Incidents(models.Model):
     id = models.BigAutoField(primary_key=True)
 
@@ -359,16 +353,16 @@ class Incidents(models.Model):
         Users, 
         on_delete=models.DO_NOTHING, 
         related_name='created_incidents',
-        db_column='created_by'  # <--- Tells Django the actual column name
+        db_column='created_by'  
     )
 
-    # 🟢 FIX: Add db_column='assigned_to' (Likely same issue here)
+
     assigned_to = models.ForeignKey(
         Users, 
         on_delete=models.DO_NOTHING, 
         null=True, 
         blank=True,
-        db_column='assigned_to' # <--- Tells Django the actual column name
+        db_column='assigned_to' 
     )
     class Meta:
         managed = False

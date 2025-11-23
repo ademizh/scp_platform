@@ -64,7 +64,7 @@ CORS_ALLOW_HEADERS = [
     "content-type",
     "origin",
     "x-requested-with",
-    "x-user-id",          # <-- ВАЖНО: наш заголовок
+    "x-user-id",          
 ]
 
 CORS_ALLOW_METHODS = [
@@ -106,9 +106,9 @@ CHANNEL_LAYERS = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "scp",          
+        "NAME": "scp_platform",          
         "USER": "postgres",
-        "PASSWORD": "050921",
+        "PASSWORD": "saami",
         "HOST": "localhost",
         "PORT": "5432",
         "OPTIONS": {

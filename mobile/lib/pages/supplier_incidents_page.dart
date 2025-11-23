@@ -9,11 +9,11 @@ class SupplierIncidentsPage extends StatefulWidget {
 }
 
 class _SupplierIncidentsPageState extends State<SupplierIncidentsPage> {
-  // 1. Define your variables here
+
   List<Incident> incidents = [];
   final api = ApiClient.instance;
   
-  // 🟢 FIX: Define the _isLoading variable here
+
   bool _isLoading = true; 
 
   @override
@@ -34,7 +34,7 @@ class _SupplierIncidentsPageState extends State<SupplierIncidentsPage> {
         if (mounted) {
           setState(() {
             incidents = data;
-            _isLoading = false; // Now this works because the variable exists
+            _isLoading = false;
           });
         }
       } else {
@@ -70,7 +70,7 @@ class _SupplierIncidentsPageState extends State<SupplierIncidentsPage> {
                         ),
                       ),
                       onTap: () async {
-                        // Wait for the detail page to close
+                        
                         await Navigator.push(
                           context,
                           MaterialPageRoute(
@@ -78,7 +78,7 @@ class _SupplierIncidentsPageState extends State<SupplierIncidentsPage> {
                           ),
                         );
                         
-                        // 🟢 REFRESH THE LIST after coming back
+                        
                         _load(); 
                       },
                       

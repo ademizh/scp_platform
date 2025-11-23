@@ -130,13 +130,6 @@ class LocalState extends State<Local> {
             ),
           ),
           linkPreviewBuilder: (context, message, isSentByMe) {
-            // It's up to you to (optionally) implement the logic to avoid every
-            // message to refetch the preview data
-            //
-            // For example, you can use a metadata to indicate if the preview
-            // was already fetched (or null).
-            //
-            // Additionally, you can cache the data to avoid re-fetching across app restarts.
             return LinkPreview(
               text: message.text,
               linkPreviewData: message.linkPreviewData,
@@ -274,16 +267,16 @@ class LocalState extends State<Local> {
     int? index,
     LongPressStartDetails? details,
   }) async {
-    // Skip showing menu for system messages
+    
     if (message.authorId == 'system' || details == null) return;
 
-    // Calculate position for the menu
+    
     final position = details.globalPosition;
 
-    // Create a Rect for the menu position (small area around tap point)
+    
     final menuRect = Rect.fromCenter(
       center: position,
-      width: 0, // Width and height of 0 means show exactly at the point
+      width: 0, 
       height: 0,
     );
 
@@ -386,7 +379,7 @@ class LocalState extends State<Local> {
   }
 
 void _handleAttachmentTap() async {
-    // 🟢 FIX 2: Removed unnecessary nested 'await await'
+    
     await showDialog(
       context: context,
       builder: (BuildContext context) {

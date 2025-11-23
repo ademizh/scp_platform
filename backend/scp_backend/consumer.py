@@ -5,10 +5,9 @@ from time import time
 class ChatConsumer(AsyncWebsocketConsumer):
 
    async def connect(self):
-    # chat_id from URL
+
     self.chat_id = self.scope["url_route"]["kwargs"]["chat_id"]
 
-    # authorId from query parameter
     qs = self.scope["query_string"].decode()
     params = dict(x.split("=") for x in qs.split("&") if "=" in x)
     self.author_id = params.get("authorId")
@@ -32,16 +31,16 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def receive(self, text_data):
         data = json.loads(text_data)
 
-        # Flutter sends basic fields — we enrich it
+       
         raw_msg = data.get("msg")
         op = data.get("op", "new")
 
-        # 👉 FIX: Create full message object that ChatUI expects
+        
         message = {
             "id": raw_msg.get("id"),
             "authorId": raw_msg.get("authorId"),
             "text": raw_msg.get("text"),
-            "createdAt": int(time() * 1000)  # milliseconds
+            "createdAt": int(time() * 1000) 
         }
 
         await self.channel_layer.group_send(
