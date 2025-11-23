@@ -113,7 +113,7 @@ class ProductListView(APIView):
 
             if cu:
                 consumer = cu.consumer
-                # Берём всех suppliers с accepted-линком
+        
                 supplier_ids = SupplierConsumerLinks.objects.filter(
                     consumer=consumer,
                     status="accepted",
@@ -125,8 +125,7 @@ class ProductListView(APIView):
                     .order_by("id")
                 )
             else:
-                # Если пользователь вообще не привязан – пустой каталог
-                qs = Products.objects.none()
+                 qs = Products.objects.none()
 
         serializer = ProductSerializer(qs, many=True)
         return Response(serializer.data)

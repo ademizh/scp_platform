@@ -5,7 +5,6 @@ import { UserPlus, Loader, Building2, Package } from "lucide-react";
 
 const API_BASE_URL =
     process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
-// Универсальный helper для запросов к Django API
 async function apiFetch(path, { method = "GET", body, userId } = {}) {
     const headers = {
         "Content-Type": "application/json",
@@ -27,7 +26,6 @@ async function apiFetch(path, { method = "GET", body, userId } = {}) {
     try {
         data = await res.json();
     } catch {
-        // тело пустое или не JSON — оставим data = null
     }
 
     if (!res.ok) {
@@ -39,7 +37,6 @@ async function apiFetch(path, { method = "GET", body, userId } = {}) {
             } else if (data.detail) {
                 msg = data.detail;
             } else {
-                // вытащить первую ошибку из объекта вида {field: ["error1", "error2"]}
                 const keys = Object.keys(data);
                 if (keys.length > 0) {
                     const firstVal = data[keys[0]];
@@ -58,13 +55,6 @@ async function apiFetch(path, { method = "GET", body, userId } = {}) {
     return data;
 }
 
-
-
-
-
-/* ------------------------------
-   Small presentational components
-   ------------------------------ */
 
 const RegistrationForm = ({ formData, manageChange, manageRegistrationSubmit, loading }) => (
     <form onSubmit={manageRegistrationSubmit} className="space-y-4">
@@ -123,7 +113,6 @@ const LoginForm = ({ formData, manageChange, manageLoginSubmit, loading }) => (
     </form>
 );
 
-/* RequestsView - supports pending, accepted, rejected, blocked */
 const RequestsView = ({
     pendingRequests,
     acceptedRequests,
@@ -187,7 +176,6 @@ const RequestsView = ({
             </div>
         )}
 
-        {/* Accepted */}
         {requestViewType === "accepted" && (
             <div className="border border-gray-400">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -214,7 +202,7 @@ const RequestsView = ({
             </div>
         )}
 
-        {/* Rejected */}
+
         {requestViewType === "rejected" && (
             <div className="border border-gray-400">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -241,7 +229,6 @@ const RequestsView = ({
             </div>
         )}
 
-        {/* Blocked */}
         {requestViewType === "blocked" && (
             <div className="border border-gray-400">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -271,7 +258,6 @@ const RequestsView = ({
     </div>
 );
 
-/* CatalogView - same layout as before, header includes View Requests and User Management (Owner-only) */
 const CatalogView = ({
     productForm,
     manageProductUpdate,
@@ -300,7 +286,6 @@ const CatalogView = ({
         <div className="flex items-center justify-between mb-6 border-b pb-3">
             <h1 className="text-2xl font-bold text-gray-800">📦 Supplier Catalog Dashboard</h1>
             <div className="flex items-center space-x-3">
-                {/* Only owner and manager can view requests */}
                 {(isOwner || isManager) && <button onClick={goToRequests} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">View Requests</button>}
                 {isOwner && <button onClick={goToUserManagement} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition">User Management</button>}
                 {(isOwner || isManager) && (
@@ -339,7 +324,6 @@ const CatalogView = ({
             </div>
         )}
 
-        {/* Add / Update Product Form */}
         <div className="mb-8 p-4 border border-gray-400 bg-gray-50">
             <h2 className="text-lg font-semibold mb-4 text-gray-700">{editingProductId ? "Update Product" : "Add Product"}</h2>
 
@@ -390,7 +374,6 @@ const CatalogView = ({
             </form>
         </div>
 
-        {/* Product Table */}
         <div className="mt-8">
             <h2 className="text-lg font-semibold mb-4 text-gray-700">Current Catalog Items</h2>
 
@@ -431,7 +414,6 @@ const CatalogView = ({
 
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
-                                    {/* Only Owner & Manager can edit/delete products; UI shown only when user is allowed */}
                                     <button onClick={() => enterEditMode(product)} className="text-gray-700 hover:text-gray-900 text-xs mr-2 border border-gray-700 px-2 py-1">Edit</button>
                                     <button onClick={() => manageProductDelete(product.id)} className="text-red-700 hover:text-red-900 text-xs border border-red-700 px-2 py-1">Delete</button>
                                 </td>
@@ -446,7 +428,6 @@ const CatalogView = ({
     </div>
 );
 
-/* UserManagementView (dedicated page - Owner only) */
 const UserManagementView = ({
     managers,
     sales,
@@ -572,7 +553,6 @@ const OrderView = ({
                 className={`px-4 py-2 border ${orderStatus === "rejected" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Rejected</button>
         </div>
 
-        {/* Pending */}
         {orderStatus === "pending" && (
             <div className="border border-gray-400">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -599,17 +579,19 @@ const OrderView = ({
                                         .join("\n")
                                 }</td>
                                 <td className="px-4 py-2">
+                                    {`$${order.totalAmount.toFixed(2)}`}
+                                </td>
+
+                                <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(product.price);
+                                        const rawPrice = Number(price.amount);
                                         const discount = Number(product.discount || 0);
 
-                                        // price after discount
                                         const discountedPrice = rawPrice * (1 - discount / 100);
 
-                                        // total for this product
                                         return sum + discountedPrice * Number(item.units);
 
                                     }, 0).toFixed(2)}
@@ -626,7 +608,6 @@ const OrderView = ({
             </div>
         )}
 
-        {/* Accepted */}
         {orderStatus === "accepted" && (
             <div className="border border-gray-400">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -651,18 +632,20 @@ const OrderView = ({
                                 <td className="px-4 py-2 whitespace-pre-line">
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
                                 </td>
+                                 <td className="px-4 py-2">
+                                    {`$${order.totalAmount.toFixed(2)}`}
+                                </td>
+
                                 <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(product.price);
+                                        const rawPrice = Number(price.amount);
                                         const discount = Number(product.discount || 0);
 
-                                        // price after discount
                                         const discountedPrice = rawPrice * (1 - discount / 100);
 
-                                        // total for this product
                                         return sum + discountedPrice * Number(item.units);
 
                                     }, 0).toFixed(2)}
@@ -678,7 +661,6 @@ const OrderView = ({
             </div>
         )}
 
-        {/* Rejected */}
         {orderStatus === "rejected" && (
             <div className="border border-gray-400">
                 <table className="min-w-full divide-y divide-gray-300">
@@ -703,18 +685,20 @@ const OrderView = ({
                                 <td className="px-4 py-2 whitespace-pre-line">
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
                                 </td>
+                                 <td className="px-4 py-2">
+                                    {`$${order.totalAmount.toFixed(2)}`}
+                                </td>
+
                                 <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(product.price);
+                                        const rawPrice = Number(amount.price);
                                         const discount = Number(product.discount || 0);
 
-                                        // price after discount
                                         const discountedPrice = rawPrice * (1 - discount / 100);
 
-                                        // total for this product
                                         return sum + discountedPrice * Number(item.units);
 
                                     }, 0).toFixed(2)}
@@ -744,7 +728,7 @@ const ComplaintsView = ({
 }) => (
     <div className="min-h-screen bg-gray-700 p-8">
         <div className="p-6 border min-h-[90vh] border-gray-400 bg-white w-full max-w-4xl mx-auto">
-            {/* Header */}
+ 
             <div className="flex items-center justify-between mb-6 border-b pb-3">
                 <h1 className="text-2xl font-bold text-gray-800">Complaints</h1>
                 <button
@@ -755,7 +739,6 @@ const ComplaintsView = ({
                 </button>
             </div>
 
-            {/* Tabs */}
             <div className="flex space-x-4 mb-6">
                 <button
                     onClick={() => setComplaintViewType("escalated")}
@@ -779,7 +762,6 @@ const ComplaintsView = ({
                 </button>
             </div>
 
-            {/* Escalated / Open / In progress */}
             {complaintViewType === "escalated" && (
                 <div className="border border-gray-400 rounded">
                     <table className="min-w-full divide-y divide-gray-300">
@@ -824,7 +806,7 @@ const ComplaintsView = ({
                 </div>
             )}
 
-            {/* Resolved */}
+            
             {complaintViewType === "resolved" && (
                 <div className="border border-gray-400 rounded">
                     <table className="min-w-full divide-y divide-gray-300">
@@ -855,40 +837,34 @@ const ComplaintsView = ({
     </div>
 );
 
-/* ------------------------------
-   Main App
-   ------------------------------ */
 const App = () => {
-    // Views: 'register', 'login', 'dashboard', 'requests', 'users'
     const [view, setView] = useState("register");
 
-    // Registration/Login form
     const [formData, setFormData] = useState({ supplierName: "", email: "", password: "", confirmPassword: "" });
     const [userId, setUserId] = useState(null);
     const [supplierId, setSupplierId] = useState(null);
 
-    // product form and edit
+   
     const [productForm, setProductForm] = useState({ productName: "", price: "", discount: "", stock: "", unit: "" });
     const [editingProductId, setEditingProductId] = useState(null);
 
-    // UI state
+ 
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
     const [loading, setLoading] = useState(false);
 
-    // Auth / supplier state (local simulation)
+
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null); // { id, name, email, role }
+    const [currentUser, setCurrentUser] = useState(null); 
     const [supplierActive, setSupplierActive] = useState(true);
 
-    // products
     const [productList, setProductList] = useState([]);
 
-    // users in supplier (Owner creates Managers and Sales)
-    const [users, setUsers] = useState([]); // { id, name, email, password, role }
+ 
+    const [users, setUsers] = useState([]); 
 
-    // requests
+  
     const [pendingRequests, setPendingRequests] = useState([]);
     const [acceptedRequests, setAcceptedRequests] = useState([]);
     const [rejectedRequests, setRejectedRequests] = useState([]);
@@ -896,7 +872,7 @@ const App = () => {
 
     const [requestViewType, setRequestViewType] = useState("pending");
 
-    //   order handling
+  
 
     const [pendingOrders, setPendingOrders] = useState([]);
     const [acceptedOrders, setAcceptedOrders] = useState([]);
@@ -904,18 +880,16 @@ const App = () => {
 
     const [orderStatus, setOrderStatus] = useState("pending");
 
-    // complaints
+
     const [escalatedComplaints, setEscalatedComplaints] = useState([]);
     const [resolvedComplaints, setResolvedComplaints] = useState([]);
 
     const [complaintViewType, setComplaintViewType] = useState("escalated");
 
-    // utils
+
     const nextId = (list) => (list && list.length ? Math.max(...list.map(x => x.id)) + 1 : 1);
 
-    /* ------------------------
-       Form handlers
-       ------------------------ */
+ 
     const manageChange = (e) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
@@ -944,10 +918,6 @@ const App = () => {
     };
 
 
-    /* ------------------------
-       Registration (Owner)
-       ------------------------ */
-    // ---------- REGISTRATION ----------
     const manageRegistrationSubmit = async (e) => {
         e.preventDefault();
         if (!verifyForm()) return;
@@ -957,11 +927,10 @@ const App = () => {
         setMessage("");
 
         try {
-            // Django ожидает: email, password, full_name, supplier_name 
             const payload = {
                 email: formData.email,
                 password: formData.password,
-                full_name: formData.supplierName,    // используем имя компании как имя владельца
+                full_name: formData.supplierName,    
                 supplier_name: formData.supplierName,
             };
 
@@ -970,7 +939,6 @@ const App = () => {
                 body: payload,
             });
 
-            // Можно сразу сохранить userId / supplierId если хочешь
             setUserId(data.user_id);
             setSupplierId(data.supplier_id);
 
@@ -988,10 +956,9 @@ const App = () => {
         try {
             const data = await apiFetch("/api/products/", {
                 method: "GET",
-                userId: currentUserId, // X-User-Id для RLS :contentReference[oaicite:2]{index=2}
+                userId: currentUserId,
             });
 
-            // ProductSerializer даёт: id, name, price, discount, stock, unit_code/unit_name :contentReference[oaicite:3]{index=3}
             const mapped = (data || []).map(p => ({
                 id: p.id,
                 name: p.name,
@@ -1005,7 +972,6 @@ const App = () => {
             setError(err.message || "Failed to load products");
         }
     };
-    // загрузка заявок на линк для текущего supplier
     const loadSupplierLinks = async (currentSupplierId) => {
         try {
             const data = await apiFetch(`/api/links/supplier/${currentSupplierId}/`, {
@@ -1016,14 +982,14 @@ const App = () => {
                 id: row.id,
                 consumerId: row.consumer_id,
                 name: row.consumer_name,
-                email: row.consumer_email || "", // в сериализаторе email нет, оставляем пустым
+                email: row.consumer_email || "", 
                 date: row.created_at ? new Date(row.created_at).toLocaleString() : "",
                 status: row.status,
             }));
 
             setPendingRequests(normalized.filter((r) => r.status === "pending"));
             setAcceptedRequests(normalized.filter((r) => r.status === "accepted"));
-            // в бэке есть status: blocked / removed – разнесём так:
+            
             setRejectedRequests(
                 normalized.filter((r) => r.status === "removed" || r.status === "rejected")
             );
@@ -1033,7 +999,7 @@ const App = () => {
         }
     };
 
-    // загрузка заказов для текущего supplier (по userId и role=supplier)
+    
     const loadSupplierOrders = async (currentUserId) => {
         try {
             const data = await apiFetch("/api/orders/?role=supplier", {
@@ -1047,6 +1013,7 @@ const App = () => {
                 email: o.consumer_email || "",
                 date: o.created_at ? new Date(o.created_at).toLocaleString() : "",
                 status: o.status,
+                totalAmount: Number(o.total_amount ?? 0),
                 products: (o.items || []).map((it) => ({
                     id: it.product_id,
                     name: it.product_name,
@@ -1072,7 +1039,7 @@ const App = () => {
                 id: s.id,
                 name: s.full_name,
                 email: s.email,
-                role: s.role_code, // "owner" | "manager" | "sales"
+                role: s.role_code,
             }));
 
             setUsers(mapped);
@@ -1121,7 +1088,6 @@ const App = () => {
         setMessage("");
 
         try {
-            // Django LoginView: email, password, login_as ("supplier" / "consumer") :contentReference[oaicite:4]{index=4}
             const payload = {
                 email: formData.email,
                 password: formData.password,
@@ -1167,7 +1133,6 @@ const App = () => {
             setIsAuthenticated(true);
             setView("dashboard");
 
-            // загрузить каталог
             await loadProducts(data.user_id);
         } catch (err) {
             setError(err.message || "Login failed");
@@ -1176,9 +1141,7 @@ const App = () => {
         }
     };
 
-    /* ------------------------
-       Catalog handlers
-       ------------------------ */
+
     const enterEditMode = (product) => {
         setProductForm({
             productName: product.name,
@@ -1221,7 +1184,6 @@ const App = () => {
             return;
         }
 
-        // Django ожидает: sku, name, description, unit_code (kg|liter|pack), price, stock, discount, delivery_time :contentReference[oaicite:5]{index=5}
         const payload = {
             sku: productForm.productName.toLowerCase().replace(/\s+/g, "-"), // простая автогенерация SKU
             name: productForm.productName,
@@ -1235,7 +1197,6 @@ const App = () => {
 
         try {
             if (editingProductId) {
-                // UPDATE: PUT /api/products/<id>/
                 await apiFetch(`/api/products/${editingProductId}/`, {
                     method: "PUT",
                     body: payload,
@@ -1246,7 +1207,6 @@ const App = () => {
                 setSuccessMessage("Product updated successfully!");
                 setEditingProductId(null);
             } else {
-                // CREATE: POST /api/products/
                 await apiFetch("/api/products/", {
                     method: "POST",
                     body: payload,
@@ -1286,9 +1246,6 @@ const App = () => {
         }
     };
 
-    /* ------------------------
-       Requests handlers
-       ------------------------ */
     const acceptRequest = async (id) => {
         if (
             !currentUser ||
@@ -1340,9 +1297,6 @@ const App = () => {
         }
     };
 
-    /* ------------------------
-       Owner actions: create/remove managers and sales, delete supplier account
-       ------------------------ */
     const createManager = async ({ name, email, password }) => {
         if (!currentUser || currentUser.role !== "owner") {
             setError("Only Owner can create Managers.");
@@ -1435,14 +1389,13 @@ const App = () => {
         setAcceptedRequests([]);
         setRejectedRequests([]);
         setBlockedRequests([]);
-        // setRemovedRequests([]);
         setCurrentUser(null);
         setIsAuthenticated(false);
         setView("register");
         setMessage("Supplier account deactivated and data archived (local simulation).");
     };
 
-    /* Orders */
+
     const acceptOrder = async (id) => {
         if (!userId) {
             setError("You must be logged in.");
@@ -1551,14 +1504,9 @@ const App = () => {
     }
 
 
-    /* ------------------------
-       Render logic
-       ------------------------ */
-
-    // Requests view: only Owner & Manager can access
     if (isAuthenticated && view === "requests") {
         if (!isOwner && !isManager) {
-            // unauthorized: send back to dashboard
+            
             setView("dashboard");
             setError("Only Owner and Manager can view requests.");
         } else {
@@ -1569,13 +1517,13 @@ const App = () => {
                         acceptedRequests={acceptedRequests}
                         rejectedRequests={rejectedRequests}
                         blockedRequests={blockedRequests}
-                        // removedRequests={removedRequests}
+                        
                         requestViewType={requestViewType}
                         setRequestViewType={setRequestViewType}
                         acceptRequest={acceptRequest}
                         rejectRequest={rejectRequest}
                         blockRequest={blockRequest}
-                        // removeRequest={removeRequest}
+                       
                         setView={setView}
                     />
                 </div>
@@ -1699,7 +1647,6 @@ const App = () => {
 
 
     if (!isAuthenticated) {
-        // Default: registration/login
         return (
             <div className="min-h-screen bg-gray-700 flex items-center justify-center p-4">
                 <div className="bg-white p-6 w-full max-w-sm border border-gray-400 shadow-xl space-y-4">
