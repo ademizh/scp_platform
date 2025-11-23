@@ -249,7 +249,7 @@ class Products(models.Model):
     unit = models.ForeignKey('Units', models.DO_NOTHING)
     is_active = models.BooleanField()
     created_at = models.DateTimeField()
-    image_url = models.TextField(blank=True, null=True)
+    #image_url = models.TextField(blank=True, null=True)
     class Meta:
         managed = False
         db_table = 'products'

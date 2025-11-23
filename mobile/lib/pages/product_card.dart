@@ -36,14 +36,16 @@ class ProductGridCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-              if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
-                AspectRatio(
-                  aspectRatio: 4 / 3,
-                  child: Image.network(
-                    product.imageUrl!,
-                    fit: BoxFit.cover,
-            ),
-            ),
+              AspectRatio(
+  aspectRatio: 4 / 3,
+  child: product.imageUrl != null && product.imageUrl!.isNotEmpty
+      ? Image.network(product.imageUrl!, fit: BoxFit.cover)
+      : Image.asset(
+          'assets/images/food.jpg',
+          fit: BoxFit.cover,
+        ),
+),
+
 
             const SizedBox(height: 8),
 
