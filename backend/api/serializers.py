@@ -34,7 +34,7 @@ class ProductSerializer(serializers.ModelSerializer):
     stock = serializers.SerializerMethodField()
     discount = serializers.SerializerMethodField()
     delivery_time = serializers.SerializerMethodField()
-    image_url = serializers.CharField(read_only=True)
+    
     class Meta:
         model = Products
         fields = [
@@ -50,7 +50,6 @@ class ProductSerializer(serializers.ModelSerializer):
             "discount",
             "stock",
             "delivery_time",
-            "image_url", 
         ]
 
     def get_price(self, obj):
@@ -125,8 +124,7 @@ class ProductCreateUpdateSerializer(serializers.Serializer):
         default=0,
     )
     delivery_time = serializers.IntegerField(required=False, allow_null=True)
-    image_url = serializers.CharField(required=False, allow_blank=True, allow_null=True) 
-
+   
 
 
 class SupplierRegisterSerializer(serializers.Serializer):

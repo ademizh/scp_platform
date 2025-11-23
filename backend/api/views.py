@@ -164,7 +164,7 @@ class ProductListView(APIView):
         )
 
         now = timezone.now()
-        image_url_safe = data.get("image_url") or ""
+        
         with transaction.atomic():
             product = Products.objects.create(
                 supplier=supplier,
@@ -174,7 +174,7 @@ class ProductListView(APIView):
                 unit=unit,
                 is_active=True,
                 created_at=now,
-                image_url=image_url_safe,
+                
             )
 
         
@@ -257,14 +257,14 @@ class ProductDetailView(APIView):
                 {"detail": f"Unit with code '{data['unit_code']}' not found"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-        image_url_safe = data.get("image_url") or ""
+       
         now = timezone.now()
         with transaction.atomic():
             product.sku = data["sku"]
             product.name = data["name"]
             product.description = data.get("description", "")
             product.unit = unit
-            product.image_url = image_url_safe
+           
             product.save()
 
             Prices.objects.create(

@@ -106,9 +106,9 @@ CHANNEL_LAYERS = {
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": "scp_platform",          
+        "NAME": "scp",          
         "USER": "postgres",
-        "PASSWORD": "saami",
+        "PASSWORD": "1704",
         "HOST": "localhost",
         "PORT": "5432",
         "OPTIONS": {

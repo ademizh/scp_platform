@@ -357,7 +357,7 @@ const CatalogView = ({
                 <div>
                     <label htmlFor="image" className="block text-sm font-medium text-gray-700">Image</label>
                     <input id="image" type="file" accept="image/*" className="w-full border border-gray-400 p-2 text-gray-900"
-                        onChange={manageProductUpdate} />
+             />
                 </div>
 
                 <button type="submit" className="w-full bg-gray-700 text-white py-2 hover:bg-gray-600 transition duration-150">
@@ -950,7 +950,6 @@ const App = () => {
                 discount: Number(p.discount ?? 0),
                 stock: Number(p.stock ?? 0),
                 unit: p.unit_code || p.unit_name || "",
-                image: p.image_url || null,
             }));
             setProductList(mapped);
         } catch (err) {
@@ -1203,7 +1202,7 @@ const App = () => {
             }
 
 
-            setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "", image: null, });
+            setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "" });
             setTimeout(() => setSuccessMessage(""), 2000);
         } catch (err) {
             setError(err.message || "Failed to save product");
