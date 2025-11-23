@@ -15,15 +15,15 @@ Future<Map<String, dynamic>> uploadFile(
 ) async {
   final uri = Uri.parse('https://whatever.diamanthq.dev/upload');
 
-  // Generate a boundary
+  
   final boundary = base64.encode(
     List<int>.generate(32, (_) => Random().nextInt(256)),
   );
 
-  // Create the request
+ 
   final request = http.MultipartRequest('POST', uri);
 
-  // Add the file
+  
   final multipartFile = http.MultipartFile(
     'blob',
     trackProgress(bytes, id: id, chatController: chatController),
@@ -31,17 +31,17 @@ Future<Map<String, dynamic>> uploadFile(
     filename: path.split('/').last,
   );
 
-  // Add fields to the request
+  
   request.fields['format'] = 'img';
   request.files.add(multipartFile);
 
-  // Set the content type with boundary
+  
   request.headers['content-type'] = 'multipart/form-data; boundary=$boundary';
 
-  // Add timeout
+  
   final client = http.Client();
   try {
-    // Send the request with progress tracking
+    
     final streamedResponse = await request.send().timeout(
       const Duration(seconds: 30),
       onTimeout: () {
@@ -49,7 +49,7 @@ Future<Map<String, dynamic>> uploadFile(
       },
     );
 
-    // Get the response
+    
     final response = await http.Response.fromStream(streamedResponse);
 
     if (response.statusCode != 200) {
@@ -76,7 +76,7 @@ Stream<List<int>> trackProgress(
 
   try {
     num uploaded = 0;
-    const chunkSize = 1024 * 64; // 64KB chunks
+    const chunkSize = 1024 * 64; 
     final total = bytes.length;
 
     for (var i = 0; i < total; i += chunkSize) {

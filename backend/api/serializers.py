@@ -17,7 +17,6 @@ from .models import (
 )
 
 
-# ---------- PRODUCTS ----------
 
 class ProductSerializer(serializers.ModelSerializer):
     """
@@ -71,13 +70,9 @@ class ProductSerializer(serializers.ModelSerializer):
         return float(stock.quantity) if stock else 0.0
 
     def get_discount(self, obj):
-        # В БД отдельного поля нет, поэтому пока возвращаем 0.
-        # Можно будет заменить, когда добавите колонку / таблицу для скидок.
         return 0.0
 
     def get_delivery_time(self, obj):
-        # Аналогично скидке – логическое поле из SRS, пока заглушка.
-        # Например, можно будет хранить в отдельной таблице.
         return None
 
 class SupplierStaffSerializer(serializers.ModelSerializer):
@@ -104,7 +99,6 @@ class SupplierStaffCreateSerializer(serializers.Serializer):
     full_name = serializers.CharField(max_length=255)
     email = serializers.EmailField()
     password = serializers.CharField(write_only=True, min_length=4)
-    # мы создаём только manager / sales – owner создаётся при регистрации supplier
     role_code = serializers.ChoiceField(choices=["manager", "sales"])
 
     def validate_email(self, value):
@@ -133,7 +127,7 @@ class ProductCreateUpdateSerializer(serializers.Serializer):
     delivery_time = serializers.IntegerField(required=False, allow_null=True)
     image_url = serializers.CharField(required=False, allow_blank=True, allow_null=True) 
 
-# ---------- AUTH / USERS ----------
+
 
 class SupplierRegisterSerializer(serializers.Serializer):
     email = serializers.EmailField()
@@ -169,7 +163,6 @@ class LoginSerializer(serializers.Serializer):
     )
 
 
-# ---------- LINKS (Supplier–Consumer) ----------
 
 class LinkRequestCreateSerializer(serializers.Serializer):
     consumer_id = serializers.IntegerField()
@@ -202,7 +195,6 @@ class SupplierIncomingLinkSerializer(serializers.ModelSerializer):
         fields = ["id", "consumer_id", "consumer_name", "status"]
 
 
-# ---------- ORDERS ----------
 
 class OrderItemInputSerializer(serializers.Serializer):
     product_id = serializers.IntegerField()

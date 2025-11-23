@@ -116,7 +116,7 @@ class _ConsumerIncidentsPageState extends State<ConsumerIncidentsPage> {
                               builder: (_) => IncidentDetailsPage(incident: incident),
                             ),
                           );
-                          // Reload list when coming back from details
+                          
                           _loadIncidents(); 
                         },
                       ),

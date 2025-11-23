@@ -97,7 +97,7 @@ class _HomePageState extends State<HomePage> {
     }
 
     if (_userId == null) {
-      // fallback, идём на логин
+
       _goToLogin();
       return const SizedBox.shrink();
     }
@@ -106,7 +106,7 @@ class _HomePageState extends State<HomePage> {
       return SupplierHomePage(userId: _userId!);
     }
 
-    // default: consumer
+
     return ConsumerHomePage(userId: _userId!);
   }
 }

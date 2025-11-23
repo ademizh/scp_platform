@@ -966,6 +966,7 @@ const App = () => {
                 discount: Number(p.discount ?? 0),
                 stock: Number(p.stock ?? 0),
                 unit: p.unit_code || p.unit_name || "",
+                image: p.image_url || null,
             }));
             setProductList(mapped);
         } catch (err) {

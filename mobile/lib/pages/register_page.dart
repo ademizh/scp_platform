@@ -38,7 +38,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final api = ApiClient.instance;
 
-      // ONLY CONSUMER REGISTRATION
+      
       final result = await api.registerConsumer(
         email: emailController.text.trim(),
         password: passwordController.text,

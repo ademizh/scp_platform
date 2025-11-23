@@ -23,7 +23,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
     _checkRole();
   }
   Future<void> _checkRole() async {
-    // Check if current user has a Supplier ID
+    
     final supplierId = await SessionService.instance.getSupplierId();
     if (mounted) {
       setState(() {
@@ -32,7 +32,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
     }
   }
 
-  // 1. Update Status Function
+  
   Future<void> _updateStatus(String newStatus) async {
     setState(() => _isUpdating = true);
     try {
@@ -67,7 +67,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
     }
   }
 
-  // 2. Escalate Function
+
   Future<void> _escalate() async {
     setState(() => _isUpdating = true);
     try {
@@ -76,12 +76,12 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
         final success = await ApiClient.instance.escalateIncident(userId, widget.incident.id);
         
         if (success) {
-          setState(() => _status = 'open'); // Revert to open
+          setState(() => _status = 'open'); 
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(content: Text("Escalated to Manager (Unassigned)"))
             );
-            Navigator.pop(context); // Close page
+            Navigator.pop(context); 
           }
         } else {
           if (mounted) {
@@ -107,7 +107,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // --- STATUS BADGE ---
+           
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
@@ -124,7 +124,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
             ),
             const SizedBox(height: 20),
             
-            // --- COMPLAINT INFO ---
+           
             const Text("Complaint:", style: TextStyle(fontWeight: FontWeight.bold)),
             Text(widget.incident.message, style: const TextStyle(fontSize: 16)),
             
@@ -133,12 +133,12 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
 
             const SizedBox(height: 30),
 
-            // --- ACTION BUTTONS (Only if not resolved) ---
+            
             if (_isSupplier &&_status != 'resolved') ...[
               const Text("Actions:", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 10),
               
-              // Row for Take/Resolve
+             
               Row(
                 children: [
                   if (_status == 'open')
@@ -180,7 +180,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
 
             const Spacer(),
 
-            // --- CHAT BUTTON ---
+           
             SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
@@ -204,7 +204,7 @@ class _IncidentDetailsPageState extends State<IncidentDetailsPage> {
                 },
               ),
             ),
-          ], // 🟢 Correct closing bracket for children
+          ], 
         ),
       ),
     );

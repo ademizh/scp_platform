@@ -46,7 +46,7 @@ from .serializers import (
 )
 
 
-# ---------- helper: RLS ----------
+
 
 def _set_rls_user(user_id: int):
     """
@@ -75,8 +75,6 @@ def _get_int_user_id(request):
         )
 
 
-# ---------- PRODUCTS ----------
-
 class ProductListView(APIView):
     """
     GET  /api/products/           – каталог по RLS (consumer / supplier)
@@ -96,14 +94,14 @@ class ProductListView(APIView):
             .first()
         )
         if staff:
-            # Supplier видит только свои товары
+            
             qs = (
                 Products.objects
                 .filter(supplier=staff.supplier, is_active=True)
                 .order_by("id")
             )
         else:
-            # 2) Иначе пробуем как consumer
+            
             cu = (
                 ConsumerUsers.objects
                 .filter(user_id=int_user_id, is_active=True)
@@ -179,23 +177,22 @@ class ProductListView(APIView):
                 image_url=image_url_safe,
             )
 
-            # Price
+        
             Prices.objects.create(
                 product=product,
-                currency="KZT",  # можно вынести в SRS / настройки
+                currency="KZT",  
                 amount=data["price"],
                 valid_from=now.date(),
             )
 
-            # Stock
+            
             StockLevels.objects.create(
                 product=product,
                 quantity=data["stock"],
                 updated_at=now,
             )
 
-            # discount / delivery_time пока не сохраняем в БД (заглушка),
-            # можно расширить схему позже.
+           
 
         out = ProductSerializer(product)
         return Response(out.data, status=status.HTTP_201_CREATED)
@@ -237,7 +234,7 @@ class ProductDetailView(APIView):
         if not product:
             return Response({"detail": "Product not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # проверка, что пользователь – staff этого поставщика
+        
         staff = SupplierStaff.objects.filter(
             user_id=int_user_id,
             supplier=product.supplier,
@@ -307,13 +304,13 @@ class ProductDetailView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # мягкое удаление – деактивация
+        
         product.is_active = False
         product.save(update_fields=["is_active"])
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
-# ---------- AUTH ----------
+
 
 class SupplierRegisterView(APIView):
     """
@@ -472,7 +469,7 @@ class LoginView(APIView):
         )
 
 
-# ---------- LINKS (Supplier–Consumer) ----------
+
 
 class LinkRequestCreateView(APIView):
     """
@@ -593,7 +590,7 @@ class LinkRejectView(APIView):
         return Response({"detail": "blocked"}, status=status.HTTP_200_OK)
 
 
-# ---------- ORDERS ----------
+
 
 class OrderListCreateView(APIView):
     """
@@ -605,15 +602,14 @@ class OrderListCreateView(APIView):
         """
         Consumer создаёт заказ из корзины.
         """
-        # 1) Определяем int user_id из заголовка / query
         int_user_id, error_response = _get_int_user_id(request)
         if error_response:
             return error_response
 
-        # 2) Проставляем current_user_id для RLS
+      
         _set_rls_user(int_user_id)
 
-        # 3) Проверяем, что юзер — активный consumer
+  
         consumer_user = (
             ConsumerUsers.objects
             .filter(user_id=int_user_id, is_active=True)
@@ -627,7 +623,7 @@ class OrderListCreateView(APIView):
             )
         consumer = consumer_user.consumer
 
-        # 4) Валидируем тело запроса
+      
         serializer = OrderCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
@@ -639,7 +635,6 @@ class OrderListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 5) Загружаем продукты
         product_ids = [item["product_id"] for item in items]
         products = list(Products.objects.filter(id__in=product_ids))
         products_by_id = {p.id: p for p in products}
@@ -650,7 +645,6 @@ class OrderListCreateView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # 6) Проверяем, что все товары от ОДНОГО supplier'а
         supplier_ids = {p.supplier_id for p in products}
         if len(supplier_ids) != 1:
             return Response(
@@ -661,7 +655,6 @@ class OrderListCreateView(APIView):
         supplier_id = supplier_ids.pop()
         supplier = Suppliers.objects.get(id=supplier_id)
 
-        # 7) Проверяем, что есть accepted link между этим consumer и supplier
         link_exists = SupplierConsumerLinks.objects.filter(
             supplier=supplier,
             consumer=consumer,
@@ -674,12 +667,11 @@ class OrderListCreateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # 8) Создаём заказ и позиции внутри транзакции
         now = timezone.now()
         total_amount = Decimal("0.00")
         
         with transaction.atomic():
-            # Явно записываем created_at и created_by
+           
             with connection.cursor() as cursor:
                 cursor.execute(
                     """
@@ -700,7 +692,7 @@ class OrderListCreateView(APIView):
                 )
                 order_id = cursor.fetchone()[0]
 
-            # Загружаем только что созданный объект как Django-модель
+            
             order = Orders.objects.get(id=order_id)
 
             order_items = []
@@ -733,7 +725,7 @@ class OrderListCreateView(APIView):
 
             OrderItems.objects.bulk_create(order_items)
 
-            # Обновляем total_amount уже после подсчёта
+            
             order.total_amount = total_amount
             order.save(update_fields=["total_amount"])
 
@@ -871,12 +863,12 @@ class SupplierDirectoryView(APIView):
     Возвращает список всех активных поставщиков для поиска.
     """
     def get(self, request):
-        # Берем всех активных поставщиков
+        
         suppliers = Suppliers.objects.filter(is_active=True)
         serializer = SupplierPublicSerializer(suppliers, many=True)
         return Response(serializer.data)
     
-# ---------- SUPPLIER STAFF (User Management) ----------
+
 
 class SupplierStaffListCreateView(APIView):
     """
@@ -984,7 +976,7 @@ class SupplierStaffDeactivateView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # ищем запись owner по тому же supplier
+        
         owner_staff = (
             SupplierStaff.objects
             .select_related("role")
@@ -1002,7 +994,7 @@ class SupplierStaffDeactivateView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # запрещаем owner удалить сам себя, чтобы не потерять доступ
+        
         if staff_to_remove.user_id == int_user_id:
             return Response(
                 {"detail": "Owner cannot remove themselves"},
@@ -1026,7 +1018,7 @@ def messages_list(request, chat_id):
         return JsonResponse(list(MESSAGES.get(chat_id, [])), safe=False)
 
     if request.method == "POST":
-        # text or file messages
+        
         if request.FILES:
             uploaded = request.FILES["file"]
             filename = f"{uuid.uuid4()}_{uploaded.name}"
@@ -1096,19 +1088,17 @@ class ComplaintCreateView(APIView):
                 {"detail": "Order not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-        # 2. Create the record in 'incidents' table
-        # We must provide 'supplier' and 'created_by' because they are NOT NULL in scheme.sql
+        
         try:
             complaint = Incidents.objects.create(
                 order=order,
                 consumer=consumer_user.consumer,
-                supplier=order.supplier,        # <--- REQUIRED: From Order
-                created_by_id=int_user_id,      # <--- REQUIRED: From Token/Header
+                supplier=order.supplier,        
+                created_by_id=int_user_id,      
                 description=data.get("description", data.get("message")),
                 status="open"
             )
         except Exception as e:
-            # Catch DB errors (like missing fields) and print them
             print(f"Error creating incident: {e}")
             return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ComplaintSerializer(complaint).data, status=status.HTTP_201_CREATED)
@@ -1117,12 +1107,12 @@ class SupplierIncidentListView(APIView):
     GET /api/supplier/<supplier_id>/incidents/
     """
     def get(self, request, supplier_id: int):
-        # 1. Authenticate
+        
         int_user_id, error_response = _get_int_user_id(request)
         if error_response:
             return error_response
 
-        # 2. Set RLS User (CRITICAL STEP)
+        
         _set_rls_user(int_user_id)
         
         is_staff = SupplierStaff.objects.filter(
@@ -1137,12 +1127,8 @@ class SupplierIncidentListView(APIView):
                 status=status.HTTP_403_FORBIDDEN,
             )
 
-        # 4. Query Incidents
-        # We filter by supplier_id explicitly, RLS will further filter by visibility
         incidents = Incidents.objects.filter(supplier_id=supplier_id).order_by('-created_at')
         
-        # 5. Serialize
-        # You can use a serializer. If you don't have one for listing, create it or reuse
         data = []
         for inc in incidents:
             data.append({
@@ -1150,7 +1136,7 @@ class SupplierIncidentListView(APIView):
                 "order_id": inc.order_id,
                 "supplier_id": inc.supplier_id,
                 "consumer_id": inc.consumer_id,
-                "message": inc.description, # Map description -> message
+                "message": inc.description, 
                 "status": inc.status,
                 "created_at": inc.created_at.isoformat(),
                 "created_by": inc.created_by_id,
@@ -1165,7 +1151,6 @@ class ConsumerIncidentListView(APIView):
 
         _set_rls_user(int_user_id)
 
-        # Filter where created_by == current user
         incidents = Incidents.objects.filter(created_by_id=int_user_id).order_by('-created_at')
         
         data = []
@@ -1183,9 +1168,7 @@ class ConsumerIncidentListView(APIView):
             })
         return Response(data)
 
-# ---------------------------------------------------------
-# 3. UPDATE STATUS: Resolve / In Progress
-# ---------------------------------------------------------
+
 class IncidentDetailView(APIView):
     def patch(self, request, incident_id):
         int_user_id, error_response = _get_int_user_id(request)
@@ -1199,20 +1182,20 @@ class IncidentDetailView(APIView):
         except Incidents.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Update status if provided
+        
         new_status = request.data.get("status")
         if new_status:
-            # Valid statuses: 'open', 'in_progress', 'resolved'
+            
             incident.status = new_status
             
-            # If staff picks it up ('in_progress'), assign to them if NULL
+            
             if new_status == 'in_progress' and incident.assigned_to is None:
                 incident.assigned_to_id = int_user_id
                 
             incident.save()
 
         return Response({"status": "updated"}, status=status.HTTP_200_OK)
-# ... existing imports ...
+
 
 class IncidentEscalateView(APIView):
     """
@@ -1231,7 +1214,7 @@ class IncidentEscalateView(APIView):
         except Incidents.DoesNotExist:
             return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
 
-        # Logic: Set to 'open' and remove the assigned person
+        
         incident.status = 'open'
         incident.assigned_to = None 
         incident.save()
