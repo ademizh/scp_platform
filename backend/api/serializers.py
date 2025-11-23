@@ -13,6 +13,7 @@ from .models import (
     Prices,
     Orders,
     OrderItems,
+    Incidents,
 )
 
 
@@ -34,7 +35,7 @@ class ProductSerializer(serializers.ModelSerializer):
     stock = serializers.SerializerMethodField()
     discount = serializers.SerializerMethodField()
     delivery_time = serializers.SerializerMethodField()
-
+    image_url = serializers.CharField(read_only=True)
     class Meta:
         model = Products
         fields = [
@@ -50,6 +51,7 @@ class ProductSerializer(serializers.ModelSerializer):
             "discount",
             "stock",
             "delivery_time",
+            "image_url", 
         ]
 
     def get_price(self, obj):
@@ -129,7 +131,7 @@ class ProductCreateUpdateSerializer(serializers.Serializer):
         default=0,
     )
     delivery_time = serializers.IntegerField(required=False, allow_null=True)
-
+    image_url = serializers.CharField(required=False, allow_blank=True) 
 
 # ---------- AUTH / USERS ----------
 
@@ -258,16 +260,23 @@ class SupplierPublicSerializer(serializers.ModelSerializer):
         model = Suppliers
         fields = ['id', 'name', 'is_active']
 
-from .models import (
-    Orders, OrderItems, Suppliers, Products, Complaint  # ← ADD HERE
-)
+
 class ComplaintSerializer(serializers.ModelSerializer):
+    """
+    Сериализация инцидента (жалобы).
+    Использует модель Incidents, но имя оставляем ComplaintSerializer,
+    чтобы не ломать фронт.
+    """
     class Meta:
-        model = Complaint
+        model = Incidents
         fields = "__all__"
 
+
 class ComplaintCreateSerializer(serializers.Serializer):
+    """
+    Входные данные при создании жалобы:
+      - order_id: ID заказа
+      - message: текст жалобы
+    """
     order_id = serializers.IntegerField()
     message = serializers.CharField()
-
-

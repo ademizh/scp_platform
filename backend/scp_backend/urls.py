@@ -18,6 +18,10 @@ from api.views import (
     SupplierStaffListCreateView,
     SupplierStaffDeactivateView,
     ComplaintCreateView,
+    SupplierIncidentListView,
+    ConsumerIncidentListView, 
+    IncidentDetailView, 
+    IncidentEscalateView
 )
 from api.views import messages_list   # ONLY THIS
 
@@ -55,4 +59,10 @@ urlpatterns = [
 
     # COMPLAINTS
     path("api/incidents/", ComplaintCreateView.as_view()),
+    path('api/supplier/<int:supplier_id>/incidents/', SupplierIncidentListView.as_view()),
+    path('api/my-incidents/', ConsumerIncidentListView.as_view()),
+
+    # Update Status (Patch)
+    path('api/incidents/<int:incident_id>/', IncidentDetailView.as_view()),
+    path('api/incidents/<int:incident_id>/escalate/', IncidentEscalateView.as_view()),
 ]

@@ -36,12 +36,13 @@ class ProductGridCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                color: Colors.grey.shade200,
-                child: const Icon(Icons.fastfood, color: Colors.grey, size: 40),
-              ),
+              if (product.imageUrl != null && product.imageUrl!.isNotEmpty)
+                AspectRatio(
+                  aspectRatio: 4 / 3,
+                  child: Image.network(
+                    product.imageUrl!,
+                    fit: BoxFit.cover,
+            ),
             ),
 
             const SizedBox(height: 8),

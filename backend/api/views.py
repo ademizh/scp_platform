@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from decimal import Decimal, ROUND_HALF_UP
 import json, time, uuid
-from .models import Complaint
+from .models import Incidents, ConsumerUsers
 from .serializers import ComplaintSerializer, ComplaintCreateSerializer
 from django.views.decorators.csrf import csrf_exempt
 from django.http import JsonResponse
@@ -27,6 +27,7 @@ from .models import (
     Prices,
     Orders,
     OrderItems,
+
 )
 from .serializers import (
     ProductSerializer,
@@ -178,6 +179,7 @@ class ProductListView(APIView):
                 unit=unit,
                 is_active=True,
                 created_at=now,
+                image_url=data.get("image_url", ""),
             )
 
             # Price
@@ -268,6 +270,7 @@ class ProductDetailView(APIView):
             product.name = data["name"]
             product.description = data.get("description", "")
             product.unit = unit
+            product.image_url = data.get("image_url", product.image_url)
             product.save()
 
             Prices.objects.create(
@@ -1086,20 +1089,156 @@ class ComplaintCreateView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Проверяем, что заказ принадлежит этому потребителю
         try:
-            order = Orders.objects.get(id=data["order_id"], consumer=consumer_user.consumer)
+            order = Orders.objects.get(
+                id=data["order_id"],
+                consumer=consumer_user.consumer,
+            )
         except Orders.DoesNotExist:
             return Response(
                 {"detail": "Order not found"},
                 status=status.HTTP_404_NOT_FOUND,
             )
-
-        complaint = Complaint.objects.create(
-            order=order,
-            consumer=consumer_user.consumer,
-            message=data["message"],
-            status="pending",
-        )
-
+        # 2. Create the record in 'incidents' table
+        # We must provide 'supplier' and 'created_by' because they are NOT NULL in scheme.sql
+        try:
+            complaint = Incidents.objects.create(
+                order=order,
+                consumer=consumer_user.consumer,
+                supplier=order.supplier,        # <--- REQUIRED: From Order
+                created_by_id=int_user_id,      # <--- REQUIRED: From Token/Header
+                description=data.get("description", data.get("message")),
+                status="open"
+            )
+        except Exception as e:
+            # Catch DB errors (like missing fields) and print them
+            print(f"Error creating incident: {e}")
+            return Response({"detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
         return Response(ComplaintSerializer(complaint).data, status=status.HTTP_201_CREATED)
+class SupplierIncidentListView(APIView):
+    """
+    GET /api/supplier/<supplier_id>/incidents/
+    """
+    def get(self, request, supplier_id: int):
+        # 1. Authenticate
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        # 2. Set RLS User (CRITICAL STEP)
+        _set_rls_user(int_user_id)
+        incidents = Incidents.objects.filter(supplier_id=supplier_id).order_by('-created_at')
+        # 3. Check permissions (Optional, DB RLS handles it, but good for safety)
+        # Ensure the user actually belongs to this supplier
+        is_staff = SupplierStaff.objects.filter(
+            user_id=int_user_id, 
+            supplier_id=supplier_id, 
+            is_active=True
+        ).exists()
+        
+        if not is_staff:
+             return Response(
+                {"detail": "You are not a staff member of this supplier"},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        # 4. Query Incidents
+        # We filter by supplier_id explicitly, RLS will further filter by visibility
+        qs = Incidents.objects.filter(supplier_id=supplier_id).order_by('-created_at')
+        
+        # 5. Serialize
+        # You can use a serializer. If you don't have one for listing, create it or reuse
+        data = []
+        for inc in incidents:
+            data.append({
+                "id": inc.id,
+                "order_id": inc.order_id,
+                "supplier_id": inc.supplier_id,
+                "consumer_id": inc.consumer_id,
+                "message": inc.description, # Map description -> message
+                "status": inc.status,
+                "created_at": inc.created_at.isoformat(),
+                "created_by": inc.created_by_id,
+                "assigned_to": inc.assigned_to_id,
+            })
+        return Response(data)
+class ConsumerIncidentListView(APIView):
+    def get(self, request):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        # Filter where created_by == current user
+        incidents = Incidents.objects.filter(created_by_id=int_user_id).order_by('-created_at')
+        
+        data = []
+        for inc in incidents:
+            data.append({
+                "id": inc.id,
+                "order_id": inc.order_id,
+                "supplier_id": inc.supplier_id,
+                "consumer_id": inc.consumer_id,
+                "created_by": inc.created_by_id,
+                "assigned_to": inc.assigned_to_id,
+                "message": inc.description,
+                "status": inc.status,
+                "created_at": inc.created_at.isoformat(),
+            })
+        return Response(data)
+
+# ---------------------------------------------------------
+# 3. UPDATE STATUS: Resolve / In Progress
+# ---------------------------------------------------------
+class IncidentDetailView(APIView):
+    def patch(self, request, incident_id):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        try:
+            incident = Incidents.objects.get(id=incident_id)
+        except Incidents.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Update status if provided
+        new_status = request.data.get("status")
+        if new_status:
+            # Valid statuses: 'open', 'in_progress', 'resolved'
+            incident.status = new_status
+            
+            # If staff picks it up ('in_progress'), assign to them if NULL
+            if new_status == 'in_progress' and incident.assigned_to is None:
+                incident.assigned_to_id = int_user_id
+                
+            incident.save()
+
+        return Response({"status": "updated"}, status=status.HTTP_200_OK)
+# ... existing imports ...
+
+class IncidentEscalateView(APIView):
+    """
+    POST /api/incidents/<id>/escalate/
+    Unassigns the incident so a Manager can pick it up.
+    """
+    def post(self, request, incident_id):
+        int_user_id, error_response = _get_int_user_id(request)
+        if error_response:
+            return error_response
+
+        _set_rls_user(int_user_id)
+
+        try:
+            incident = Incidents.objects.get(id=incident_id)
+        except Incidents.DoesNotExist:
+            return Response({"detail": "Not found"}, status=status.HTTP_404_NOT_FOUND)
+
+        # Logic: Set to 'open' and remove the assigned person
+        incident.status = 'open'
+        incident.assigned_to = None 
+        incident.save()
+
+        return Response({"status": "escalated"}, status=status.HTTP_200_OK)

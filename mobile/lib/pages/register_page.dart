@@ -18,9 +18,7 @@ class _RegisterPageState extends State<RegisterPage> {
   final passwordController = TextEditingController();
   final confirmPasswordController = TextEditingController();
   final fullNameController = TextEditingController();
-  final companyNameController = TextEditingController();
 
-  bool _isSupplier = true;
   bool _isLoading = false;
   String? _error;
 
@@ -39,19 +37,13 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       final api = ApiClient.instance;
-      final result = _isSupplier
-          ? await api.registerSupplier(
-              email: emailController.text.trim(),
-              password: passwordController.text,
-              fullName: fullNameController.text.trim(),
-              supplierName: companyNameController.text.trim(),
-            )
-          : await api.registerConsumer(
-              email: emailController.text.trim(),
-              password: passwordController.text,
-              fullName: fullNameController.text.trim(),
-              
-            );
+
+      // ONLY CONSUMER REGISTRATION
+      final result = await api.registerConsumer(
+        email: emailController.text.trim(),
+        password: passwordController.text,
+        fullName: fullNameController.text.trim(),
+      );
 
       await SessionService.instance.saveLogin(result);
 
@@ -79,33 +71,14 @@ class _RegisterPageState extends State<RegisterPage> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              ToggleButtons(
-                isSelected: [_isSupplier, !_isSupplier],
-                onPressed: (index) {
-                  setState(() {
-                    _isSupplier = index == 0;
-                  });
-                },
-                children: const [
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('Supplier'),
-                  ),
-                  Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: Text('Consumer'),
-                  ),
-                ],
+              const Text(
+                'Register as Consumer',
+                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
               MyTextField(
                 controller: fullNameController,
                 hintText: 'Full name',
-                obscureText: false,
-              ),
-              MyTextField(
-                controller: companyNameController,
-                hintText: _isSupplier ? 'Supplier name' : 'Consumer name',
                 obscureText: false,
               ),
               MyTextField(
@@ -126,7 +99,10 @@ class _RegisterPageState extends State<RegisterPage> {
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: 8),
-                  child: Text(_error!, style: const TextStyle(color: Colors.red)),
+                  child: Text(
+                    _error!,
+                    style: const TextStyle(color: Colors.red),
+                  ),
                 ),
               const SizedBox(height: 16),
               MyButton(

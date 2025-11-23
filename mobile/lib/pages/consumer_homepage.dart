@@ -839,11 +839,15 @@ Widget _buildConsumerOrders() {
               onPressed: () async {
                 final message = controller.text.trim();
                 if (message.isEmpty) return;
-
-                 final api = ApiClient.instance;
-                final incident = await api.createIncident(order.id, message);
-
-                if (incident != null) {
+                final userId = widget.userId;
+                final orderId = order.id;
+                final api = ApiClient.instance;
+                final incident = await api.createIncident(
+                    userId: userId,
+                    orderId: orderId,
+                    message: message,
+                  );
+                if (!incident) {
                   Navigator.pop(context);
                   setState(() {});
                   ScaffoldMessenger.of(context).showSnackBar(

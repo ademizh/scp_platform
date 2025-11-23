@@ -124,6 +124,7 @@ class Product {
   final double stock;
   final double discount; // percent
   final int? deliveryTime; // minutes
+  final String? imageUrl; 
 
   Product({
     required this.id,
@@ -136,6 +137,7 @@ class Product {
     required this.stock,
     required this.discount,
     required this.deliveryTime,
+    this.imageUrl,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -150,6 +152,7 @@ class Product {
       stock: _asDouble(json['stock'] as num),
       discount: _asDouble(json['discount'] as num?),
       deliveryTime: json['delivery_time'] as int?,
+      imageUrl: json['image_url'], 
     );
   }
 }
@@ -216,7 +219,8 @@ class Incident {
   final String message;
   final String status;
   final DateTime createdAt;
-
+  final int createdBy;
+  final int? assignedTo;
   Incident({
     required this.id,
     required this.orderId,
@@ -225,17 +229,27 @@ class Incident {
     required this.message,
     required this.status,
     required this.createdAt,
+    required this.createdBy,
+    this.assignedTo,
   });
 
   factory Incident.fromJson(Map<String, dynamic> json) {
     return Incident(
-      id: json['id'],
-      orderId: json['order'],
-      consumerId: json['consumer'],
-      supplierId: json['supplier'],
-      message: json['message'],
-      status: json['status'],
+      id: json['id'] as int,
+      
+  
+      orderId: json['order_id'] as int, 
+      
+      consumerId: json['consumer_id'] as int, 
+      
+      supplierId: json['supplier_id'] as int, 
+      
+      message: json['message'] ?? "",
+      status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at']),
+      createdBy: json['created_by'] as int, 
+      
+      assignedTo: json['assigned_to'],
     );
   }
 }
@@ -320,34 +334,40 @@ class ApiClient {
     return headers;
   }
 
-
   // CREATE complaint (consumer)
-  Future<bool> createIncident(int orderId, String message) async {
+  Future<bool> createIncident({
+    required int userId,
+    required int orderId,
+    required String message,
+  }) async {
+    // headers: X-User-Id is what Django uses
     final headers = await _getAuthHeaders();
-    
-    // Check if the Authorization header was successfully set
-    if (!headers.containsKey('Authorization')) {
-      return false; 
-    }
+    headers['X-User-Id'] = '$userId';
 
     final response = await http.post(
       Uri.parse('$_baseUrl/api/incidents/'),
       headers: headers,
       body: jsonEncode({
-        'order_id': orderId,
+        'order_id': orderId,  // snake_case matches ComplaintCreateSerializer
         'message': message,
       }),
     );
 
+    // for debug
+    debugPrint('📨 createIncident -> ${response.statusCode} ${response.body}');
+
+    if (response.statusCode != 201) {
+      debugPrint('Failed to submit incident: ${response.body}');
+    }
     return response.statusCode == 201;
   }
 
 
   // GET supplier incidents
-  Future<List<Incident>> getSupplierIncidents(int supplierId) async {
+  Future<List<Incident>> getSupplierIncidents(int userId, int supplierId) async {
     // 🟢 FIX 1: Add authentication token to headers
-    final headers = await _getAuthHeaders(contentType: ''); 
-
+    final headers = await _getAuthHeaders(); 
+    headers['X-User-Id'] = userId.toString();
     final response = await http.get(
       // 🟢 FIX 2: Corrected URL to include '/api/' prefix
       Uri.parse('$_baseUrl/api/supplier/$supplierId/incidents/'), 
@@ -355,39 +375,49 @@ class ApiClient {
     );
 
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body) as List;
-      return data.map((e) => Incident.fromJson(e)).toList();
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Incident.fromJson(json)).toList();
+    } else {
+      // Optional: Print error to see why it fails next time
+      print("Request failed: ${response.body}");
+      return [];
     }
-    return [];
   }
 
   // UPDATE status
-  Future<bool> updateIncidentStatus(int id, String status) async {
-    // 🟢 FIX 3: Add authentication token to headers
-    final headers = await _getAuthHeaders(); 
-
-    final response = await http.patch(
-      Uri.parse('$_baseUrl/api/incidents/$id/status/'),
+Future<bool> updateIncidentStatus(int userId, int incidentId, String newStatus) async {
+    final headers = await _getAuthHeaders();
+    headers['X-User-Id'] = userId.toString();
+    final response = await http.patch( // <--- Must be PATCH
+      Uri.parse('$_baseUrl/api/incidents/$incidentId/'),
       headers: headers,
-      body: jsonEncode({'status': status}),
+      body: jsonEncode({'status': newStatus}),
     );
-
+    if (response.statusCode != 200) {
+      print("Failed to update: ${response.body}");
+    }
     return response.statusCode == 200;
   }
 
   // ESCALATE
-  Future<bool> escalateIncident(int id) async {
-    // 🟢 FIX 4: Add authentication token to headers
+// ESCALATE (Updated)
+  Future<bool> escalateIncident(int userId, int id) async {
     final headers = await _getAuthHeaders();
+    
+    // 🟢 FIX: Add User ID Header
+    headers['X-User-Id'] = userId.toString();
 
     final response = await http.post(
       Uri.parse('$_baseUrl/api/incidents/$id/escalate/'),
       headers: headers,
     );
+    
+    if (response.statusCode != 200) {
+        print("Escalation failed: ${response.body}");
+    }
+    
     return response.statusCode == 200;
   }
-
-
 
   // -------- Auth --------
 
@@ -719,18 +749,23 @@ Future<List<Order>> getConsumerOrders({
   // GET consumer incidents
 Future<List<Incident>> getConsumerIncidents() async {
   final headers = await _getAuthHeaders(contentType: '');
-
+  final userId = await SessionService.instance.getUserId();
+  if (userId != null) {
+      headers['X-User-Id'] = userId.toString();
+    }
   final response = await http.get(
-    Uri.parse('$_baseUrl/api/consumer/incidents/'),
+    Uri.parse('$_baseUrl/api/my-incidents/'),
     headers: headers,
   );
 
   if (response.statusCode == 200) {
-    final data = jsonDecode(response.body) as List;
-    return data.map((e) => Incident.fromJson(e)).toList();
-  }
-
-  return [];
+      // Decode UTF8 to handle special characters correctly
+      final data = jsonDecode(utf8.decode(response.bodyBytes)) as List;
+      return data.map((e) => Incident.fromJson(e)).toList();
+    } else {
+      print("Failed to load consumer incidents: ${response.body}");
+      return [];
+    }
 }
 
   
