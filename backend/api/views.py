@@ -132,10 +132,7 @@ class ProductListView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        """
-        Создание товара от лица поставщика.
-        Supplier определяется по user_id -> SupplierStaff.
-        """
+        
         int_user_id, error_response = _get_int_user_id(request)
         if error_response:
             return error_response
@@ -146,7 +143,6 @@ class ProductListView(APIView):
         serializer.is_valid(raise_exception=True)
         data = serializer.validated_data
 
-        # Найти supplier по пользователю
         staff = (
             SupplierStaff.objects.filter(user_id=int_user_id, is_active=True)
             .select_related("supplier")
@@ -159,17 +155,19 @@ class ProductListView(APIView):
             )
 
         supplier = staff.supplier
-
-        # Найти единицу измерения по коду
-        try:
-            unit = Units.objects.get(code=data["unit_code"])
-        except Units.DoesNotExist:
+        if Products.objects.filter(supplier=supplier, sku=data["sku"]).exists():
             return Response(
-                {"detail": f"Unit with code '{data['unit_code']}' not found"},
-                status=status.HTTP_400_BAD_REQUEST,
+                {"detail": f"Product with SKU '{data['sku']}' already exists."},
+                status=status.HTTP_400_BAD_REQUEST
             )
+        unit_code = data["unit_code"]
+        unit, _ = Units.objects.get_or_create(
+            code=unit_code,
+            defaults={"name": unit_code},
+        )
 
         now = timezone.now()
+        image_url_safe = data.get("image_url") or ""
         with transaction.atomic():
             product = Products.objects.create(
                 supplier=supplier,
@@ -179,7 +177,7 @@ class ProductListView(APIView):
                 unit=unit,
                 is_active=True,
                 created_at=now,
-                image_url=data.get("image_url", ""),
+                image_url=image_url_safe,
             )
 
             # Price
@@ -263,14 +261,14 @@ class ProductDetailView(APIView):
                 {"detail": f"Unit with code '{data['unit_code']}' not found"},
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
+        image_url_safe = data.get("image_url") or ""
         now = timezone.now()
         with transaction.atomic():
             product.sku = data["sku"]
             product.name = data["name"]
             product.description = data.get("description", "")
             product.unit = unit
-            product.image_url = data.get("image_url", product.image_url)
+            product.image_url = image_url_safe
             product.save()
 
             Prices.objects.create(

@@ -294,7 +294,8 @@ const CatalogView = ({
     goToUserManagement,
     goToOrders,
     goToRequests,
-    goToComplaints
+    goToComplaints, 
+    error,  
 }) => (
     <div className="p-6 border border-gray-400 bg-white w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6 border-b pb-3">
@@ -1649,6 +1650,7 @@ const App = () => {
                             goToRequests={goToRequests}
                             goToOrders={goToOrders}
                             goToComplaints={goToComplaints}
+                            error={error} 
                         />
                     </div>
                 );

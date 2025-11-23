@@ -131,7 +131,7 @@ class ProductCreateUpdateSerializer(serializers.Serializer):
         default=0,
     )
     delivery_time = serializers.IntegerField(required=False, allow_null=True)
-    image_url = serializers.CharField(required=False, allow_blank=True) 
+    image_url = serializers.CharField(required=False, allow_blank=True, allow_null=True) 
 
 # ---------- AUTH / USERS ----------
 
