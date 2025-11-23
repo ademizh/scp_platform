@@ -391,7 +391,6 @@ const CatalogView = ({
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.discount}%</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.stock}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.unit}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600"></td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm">
                                     <span className="text-gray-400 text-xs">No image</span>
                                 </td>
@@ -559,15 +558,11 @@ const OrderView = ({
                                         .join("\n")
                                 }</td>
                                 <td className="px-4 py-2">
-                                    {`$${order.totalAmount.toFixed(2)}`}
-                                </td>
-
-                                <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(product.amount);
+                                        const rawPrice = Number(product.price);
                                         const discount = Number(product.discount || 0);
 
                                         const discountedPrice = rawPrice * (1 - discount / 100);
@@ -611,15 +606,11 @@ const OrderView = ({
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
                                 </td>
                                 <td className="px-4 py-2">
-                                    {`$${order.totalAmount.toFixed(2)}`}
-                                </td>
-
-                                <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(product.amount);
+                                        const rawPrice = Number(product.price);
                                         const discount = Number(product.discount || 0);
 
                                         const discountedPrice = rawPrice * (1 - discount / 100);
@@ -662,15 +653,11 @@ const OrderView = ({
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
                                 </td>
                                 <td className="px-4 py-2">
-                                    {`$${order.totalAmount.toFixed(2)}`}
-                                </td>
-
-                                <td className="px-4 py-2">
                                     ${order.products.reduce((sum, item) => {
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(amount.price);
+                                        const rawPrice = Number(product.price);
                                         const discount = Number(product.discount || 0);
 
                                         const discountedPrice = rawPrice * (1 - discount / 100);
