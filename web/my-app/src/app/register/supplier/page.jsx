@@ -311,7 +311,7 @@ const CatalogView = ({
                         Orders
                     </button>
                 )}
-                {isManager && (
+                {(isManager || isOwner) && (
                     <button
                         onClick={goToComplaints}
                         className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600 transition"
@@ -719,84 +719,89 @@ const ComplaintsView = ({
     setComplaintViewType,
     setView
 }) => (
-    <div className="p-6 border border-gray-400 bg-white w-full max-w-4xl mx-auto">
-        <div className="flex items-center justify-between mb-6 border-b pb-3">
-            <h1 className="text-2xl font-bold text-gray-800">Complaints</h1>
-            <button onClick={() => setView("dashboard")} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
-                Back to Catalog
-            </button>
-        </div>
-
-        <div>
-            <button onClick={() => setComplaintViewType("escalated")} className={`px-4 py-2 border ${complaintViewType === "escalated" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Escalated</button>
-            <button onClick={() => setComplaintViewType("resolved")} className={`px-4 py-2 border ${complaintViewType === "resolved" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Resolved</button>
-        </div>
-
-        {/* Escalated */}
-        {complaintViewType === "escalated" && (
-            <div className="border border-gray-400">
-                <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-200 text-gray-700">
-                        <tr>
-                            <th className="px-4 py-2">ID</th>
-                            <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Date</th> */}
-                            <th className="px-4 py-2">Text</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
-                        {escalatedComplaints.map(c => (
-                            <tr key={c.id}>
-                                <td className="px-4 py-2">{c.id}</td>
-                                <td className="px-4 py-2">{c.consumer}</td>
-                                {/* <td className="px-4 py-2">{c.date}</td> */}
-                                <td className="px-4 py-2">{c.description}</td>
-                                <td className="px-4 py-2">
-                                    <button
-                                        onClick={() => resolveComplaint(c.id)}
-                                        className="px-2 py-1 border border-green-700 text-green-700 hover:bg-green-100 text-xs"
-                                    >
-                                        Resolve
-                                    </button>
-                                </td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {escalatedComplaints.length == 0 && (
-                    <div className="p-4 text-center text-gray-600">No escalated complaints.</div>
-                )}
+    <div className="min-h-screen bg-gray-700 p-8">
+        <div className="p-6 border min-h-[90vh] border-gray-400 bg-white w-full max-w-4xl mx-auto">
+            <div className="flex items-center justify-between mb-6 border-b pb-3">
+                <h1 className="text-2xl font-bold text-gray-800">Complaints</h1>
+                <button onClick={() => setView("dashboard")} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                    Back to Catalog
+                </button>
             </div>
-        )}
 
-        {/* Resolved */}
-        {complaintViewType === "resolved" && (
-            <div className="border border-gray-400">
-                <table className="min-w-full divide-y divide-gray-300">
-                    <thead className="bg-gray-200 text-gray-700">
-                        <tr>
-                            <th className="px-4 py-2">ID</th>
-                            <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Date</th> */}
-                            <th className="px-4 py-2">Text</th>
-                        </tr>
-                    </thead>
-                    <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
-                        {resolvedComplaints.map(c => (
-                            <tr key={c.id}>
-                                <td className="px-4 py-2">{c.id}</td>
-                                <td className="px-4 py-2">{c.consumer}</td>
-                                {/* <td className="px-4 py-2">{c.date}</td> */}
-                                <td className="px-4 py-2">{c.description}</td>
-                            </tr>
-                        ))}
-                    </tbody>
-                </table>
-                {resolvedComplaints.length == 0 && (
-                    <div className="p-4 text-center text-gray-600">No resolved complaints.</div>
-                )}
+            <div className="flex space-x-4 mb-6">
+                <button onClick={() => setComplaintViewType("escalated")}
+                    className={`px-4 py-2 border ${complaintViewType === "escalated" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Escalated</button>
+                <button onClick={() => setComplaintViewType("resolved")}
+                    className={`px-4 py-2 border ${complaintViewType === "resolved" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Resolved</button>
             </div>
-        )}
+
+            {/* Escalated */}
+            {complaintViewType === "escalated" && (
+                <div className="border border-gray-400">
+                    <table className="min-w-full divide-y divide-gray-300">
+                        <thead className="bg-gray-200 text-gray-700">
+                            <tr>
+                                <th className="px-4 py-2">ID</th>
+                                <th className="px-4 py-2">Consumer Name</th>
+                                {/* <th className="px-4 py-2">Date</th> */}
+                                <th className="px-4 py-2">Text</th>
+                                <th className="px-4 py-2">Action</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
+                            {escalatedComplaints.map(c => (
+                                <tr key={c.id}>
+                                    <td className="px-4 py-2">{c.id}</td>
+                                    <td className="px-4 py-2">{c.consumer}</td>
+                                    {/* <td className="px-4 py-2">{c.date}</td> */}
+                                    <td className="px-4 py-2">{c.description}</td>
+                                    <td className="px-4 py-2">
+                                        <button
+                                            onClick={() => resolveComplaint(c.id)}
+                                            className="px-2 py-1 border border-green-700 text-green-700 hover:bg-green-100 text-xs"
+                                        >
+                                            Resolve
+                                        </button>
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {escalatedComplaints.length == 0 && (
+                        <div className="p-4 text-center text-gray-600">No escalated complaints.</div>
+                    )}
+                </div>
+            )}
+
+            {/* Resolved */}
+            {complaintViewType === "resolved" && (
+                <div className="border border-gray-400">
+                    <table className="min-w-full divide-y divide-gray-300">
+                        <thead className="bg-gray-200 text-gray-700">
+                            <tr>
+                                <th className="px-4 py-2">ID</th>
+                                <th className="px-4 py-2">Consumer Name</th>
+                                {/* <th className="px-4 py-2">Date</th> */}
+                                <th className="px-4 py-2">Text</th>
+                            </tr>
+                        </thead>
+                        <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
+                            {resolvedComplaints.map(c => (
+                                <tr key={c.id}>
+                                    <td className="px-4 py-2">{c.id}</td>
+                                    <td className="px-4 py-2">{c.consumer}</td>
+                                    {/* <td className="px-4 py-2">{c.date}</td> */}
+                                    <td className="px-4 py-2">{c.description}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                    {resolvedComplaints.length == 0 && (
+                        <div className="p-4 text-center text-gray-600">No resolved complaints.</div>
+                    )}
+                </div>
+            )}
+        </div>
     </div>
 )
 
@@ -1633,7 +1638,7 @@ const App = () => {
                         <LoginForm formData={formData} manageChange={manageChange} manageLoginSubmit={manageLoginSubmit} loading={loading} />
                     )}
 
-                    <div className="text-center text-sm pt-2">
+                    <div className="text-center text-gray-700 text-sm pt-2">
                         {view === "register" ? (
                             <>
                                 Already have an account?{" "}
