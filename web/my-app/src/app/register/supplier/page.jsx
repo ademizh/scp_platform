@@ -391,19 +391,9 @@ const CatalogView = ({
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.discount}%</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.stock}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.unit}</td>
-                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
-                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
-                                        {product.image ? (
-                                            <img
-                                                src={product.image}
-                                                alt={product.name}
-                                                className="h-12 w-12 object-cover border border-gray-300 rounded"
-                                            />
-                                        ) : (
-                                            <span className="text-gray-400 text-xs">No image</span>
-                                        )}
-                                    </td>
-
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600"></td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                    <span className="text-gray-400 text-xs">No image</span>
                                 </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
                                     <button onClick={() => enterEditMode(product)} className="text-gray-700 hover:text-gray-900 text-xs mr-2 border border-gray-700 px-2 py-1">Edit</button>
@@ -577,7 +567,7 @@ const OrderView = ({
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(price.amount);
+                                        const rawPrice = Number(product.amount);
                                         const discount = Number(product.discount || 0);
 
                                         const discountedPrice = rawPrice * (1 - discount / 100);
@@ -629,7 +619,7 @@ const OrderView = ({
                                         const product = productList.find(p => p.id === item.id);
                                         if (!product) return sum;
 
-                                        const rawPrice = Number(price.amount);
+                                        const rawPrice = Number(product.amount);
                                         const discount = Number(product.discount || 0);
 
                                         const discountedPrice = rawPrice * (1 - discount / 100);
@@ -1138,18 +1128,13 @@ const App = () => {
     };
 
     const manageProductUpdate = (e) => {
-        const { id, value, files } = e.target;
-        if (id === "image") {
-            setProductForm(prev => ({
-                ...prev,
-                image: files && files[0] ? files[0] : null,
-            }));
-        } else {
+        const { id, value } = e.target;
+        
             setProductForm(prev => ({
                 ...prev,
                 [id]: value,
             }));
-        }
+        
     };
 
     const manageAddProduct = async (e) => {
