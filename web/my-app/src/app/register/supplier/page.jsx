@@ -152,7 +152,6 @@ const RequestsView = ({
             <button onClick={() => setRequestViewType("accepted")} className={`px-4 py-2 border ${requestViewType === "accepted" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Accepted</button>
             <button onClick={() => setRequestViewType("rejected")} className={`px-4 py-2 border ${requestViewType === "rejected" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Rejected</button>
             <button onClick={() => setRequestViewType("blocked")} className={`px-4 py-2 border ${requestViewType === "blocked" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Blocked</button>
-            {/* <button onClick={() => setRequestViewType("removed")} className={`px-4 py-2 border ${requestViewType === "removed" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Removed</button> */}
         </div>
 
         {/* Pending */}
@@ -163,7 +162,7 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2 text-center">Actions</th>
                         </tr>
@@ -173,7 +172,7 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                <td className="px-4 py-2">{req.email}</td>
+                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                                 <td className="px-4 py-2 text-center space-x-2">
                                     <button onClick={() => acceptRequest(req.id)} className="px-2 py-1 border border-green-700 text-green-700 hover:bg-green-100 text-xs">Accept</button>
@@ -196,7 +195,7 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                         </tr>
                     </thead>
@@ -205,7 +204,7 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                <td className="px-4 py-2">{req.email}</td>
+                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                             </tr>
                         ))}
@@ -223,7 +222,7 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                         </tr>
                     </thead>
@@ -232,7 +231,7 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                <td className="px-4 py-2">{req.email}</td>
+                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                             </tr>
                         ))}
@@ -250,7 +249,7 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                         </tr>
                     </thead>
@@ -259,7 +258,7 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                <td className="px-4 py-2">{req.email}</td>
+                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                             </tr>
                         ))}
@@ -580,7 +579,7 @@ const OrderView = ({
                         <tr>
                             <th className="px-4 py-2">Order ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Products</th>
                             <th className="px-4 py-2">Total Amount</th>
@@ -592,7 +591,7 @@ const OrderView = ({
                             <tr key={order.id}>
                                 <td className="px-4 py-2">{order.id}</td>
                                 <td className="px-4 py-2">{order.consumerName}</td>
-                                <td className="px-4 py-2">{order.email}</td>
+                                {/* <td className="px-4 py-2">{order.email}</td> */}
                                 <td className="px-4 py-2">{order.date}</td>
                                 <td className="px-4 py-2">{
                                     order.products.map(prod => `${prod.name} - ${prod.units} units`)
@@ -634,7 +633,7 @@ const OrderView = ({
                         <tr>
                             <th className="px-4 py-2">Order ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Products</th>
                             <th className="px-4 py-2">Total Amount</th>
@@ -646,7 +645,7 @@ const OrderView = ({
                             <tr key={order.id}>
                                 <td className="px-4 py-2">{order.id}</td>
                                 <td className="px-4 py-2">{order.consumerName}</td>
-                                <td className="px-4 py-2">{order.email}</td>
+                                {/* <td className="px-4 py-2">{order.email}</td> */}
                                 <td className="px-4 py-2">{order.date}</td>
                                 <td className="px-4 py-2 whitespace-pre-line">
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
@@ -686,7 +685,7 @@ const OrderView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            <th className="px-4 py-2">Email</th>
+                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Products</th>
                             <th className="px-4 py-2">Total Amount</th>
@@ -698,7 +697,7 @@ const OrderView = ({
                             <tr key={order.id}>
                                 <td className="px-4 py-2">{order.id}</td>
                                 <td className="px-4 py-2">{order.consumerName}</td>
-                                <td className="px-4 py-2">{order.email}</td>
+                                {/* <td className="px-4 py-2">{order.email}</td> */}
                                 <td className="px-4 py-2">{order.date}</td>
                                 <td className="px-4 py-2 whitespace-pre-line">
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
