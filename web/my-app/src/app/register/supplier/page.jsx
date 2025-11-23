@@ -734,97 +734,126 @@ const OrderView = ({
 
 const ComplaintsView = ({
     escalatedComplaints,
-    resolveComplaint,
     resolvedComplaints,
     complaintViewType,
     setComplaintViewType,
-    setView
+    setView,
+    isManager,
+    isOwner,
+    resolveComplaint,
 }) => (
     <div className="min-h-screen bg-gray-700 p-8">
         <div className="p-6 border min-h-[90vh] border-gray-400 bg-white w-full max-w-4xl mx-auto">
+            {/* Header */}
             <div className="flex items-center justify-between mb-6 border-b pb-3">
                 <h1 className="text-2xl font-bold text-gray-800">Complaints</h1>
-                <button onClick={() => setView("dashboard")} className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600">
+                <button
+                    onClick={() => setView("dashboard")}
+                    className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:bg-gray-600"
+                >
                     Back to Catalog
                 </button>
             </div>
 
+            {/* Tabs */}
             <div className="flex space-x-4 mb-6">
-                <button onClick={() => setComplaintViewType("escalated")}
-                    className={`px-4 py-2 border ${complaintViewType === "escalated" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Escalated</button>
-                <button onClick={() => setComplaintViewType("resolved")}
-                    className={`px-4 py-2 border ${complaintViewType === "resolved" ? "bg-gray-700 text-white" : "bg-white text-gray-700"}`}>Resolved</button>
+                <button
+                    onClick={() => setComplaintViewType("escalated")}
+                    className={`px-4 py-2 border rounded ${
+                        complaintViewType === "escalated"
+                            ? "bg-gray-700 text-white border-gray-700"
+                            : "bg-white text-gray-700 border-gray-400"
+                    }`}
+                >
+                    Escalated / Open
+                </button>
+                <button
+                    onClick={() => setComplaintViewType("resolved")}
+                    className={`px-4 py-2 border rounded ${
+                        complaintViewType === "resolved"
+                            ? "bg-gray-700 text-white border-gray-700"
+                            : "bg-white text-gray-700 border-gray-400"
+                    }`}
+                >
+                    Resolved
+                </button>
             </div>
 
-            {/* Escalated */}
+            {/* Escalated / Open / In progress */}
             {complaintViewType === "escalated" && (
-                <div className="border border-gray-400">
+                <div className="border border-gray-400 rounded">
                     <table className="min-w-full divide-y divide-gray-300">
                         <thead className="bg-gray-200 text-gray-700">
                             <tr>
-                                <th className="px-4 py-2">ID</th>
-                                <th className="px-4 py-2">Consumer Name</th>
-                                {/* <th className="px-4 py-2">Date</th> */}
-                                <th className="px-4 py-2">Text</th>
-                                <th className="px-4 py-2">Action</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">ID</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">Consumer</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">Status</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">Text</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">Actions</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
-                            {escalatedComplaints.map(c => (
+                            {escalatedComplaints.map((c) => (
                                 <tr key={c.id}>
                                     <td className="px-4 py-2">{c.id}</td>
                                     <td className="px-4 py-2">{c.consumer}</td>
-                                    {/* <td className="px-4 py-2">{c.date}</td> */}
+                                    <td className="px-4 py-2 capitalize">{c.status}</td>
                                     <td className="px-4 py-2">{c.description}</td>
-                                    <td className="px-4 py-2">
-                                        <button
-                                            onClick={() => resolveComplaint(c.id)}
-                                            className="px-2 py-1 border border-green-700 text-green-700 hover:bg-green-100 text-xs"
-                                        >
-                                            Resolve
-                                        </button>
-                                    </td>
+                                    <td className="px-4 py-2 space-x-2">
+
+                                            {(isOwner || isManager) && c.status !== "resolved" && (
+                                                <button
+                                                    onClick={() => resolveComplaint(c.id)}
+                                                    className="px-2 py-1 border border-green-700 text-green-700 rounded hover:bg-green-100 text-xs"
+                                                >
+                                                    Resolve
+                                                </button>
+                                            )}
+                                        </td>
+
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    {escalatedComplaints.length == 0 && (
-                        <div className="p-4 text-center text-gray-600">No escalated complaints.</div>
+
+                    {escalatedComplaints.length === 0 && (
+                        <div className="p-4 text-center text-gray-600">
+                            No escalated / open complaints.
+                        </div>
                     )}
                 </div>
             )}
 
             {/* Resolved */}
             {complaintViewType === "resolved" && (
-                <div className="border border-gray-400">
+                <div className="border border-gray-400 rounded">
                     <table className="min-w-full divide-y divide-gray-300">
                         <thead className="bg-gray-200 text-gray-700">
                             <tr>
-                                <th className="px-4 py-2">ID</th>
-                                <th className="px-4 py-2">Consumer Name</th>
-                                {/* <th className="px-4 py-2">Date</th> */}
-                                <th className="px-4 py-2">Text</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">ID</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">Consumer</th>
+                                <th className="px-4 py-2 text-left text-sm font-semibold">Text</th>
                             </tr>
                         </thead>
                         <tbody className="bg-white divide-y divide-gray-300 text-gray-700">
-                            {resolvedComplaints.map(c => (
+                            {resolvedComplaints.map((c) => (
                                 <tr key={c.id}>
                                     <td className="px-4 py-2">{c.id}</td>
                                     <td className="px-4 py-2">{c.consumer}</td>
-                                    {/* <td className="px-4 py-2">{c.date}</td> */}
                                     <td className="px-4 py-2">{c.description}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
-                    {resolvedComplaints.length == 0 && (
+
+                    {resolvedComplaints.length === 0 && (
                         <div className="p-4 text-center text-gray-600">No resolved complaints.</div>
                     )}
                 </div>
             )}
         </div>
     </div>
-)
+);
 
 /* ------------------------------
    Main App
@@ -1050,29 +1079,38 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to load staff");
         }
-    };
+        };
 
     const loadComplaints = async (currentUserId) => {
+        if (!supplierId) {
+            setError("Supplier is not defined");
+            return;
+        }
+
         try {
-            const data = await apiFetch("/api/incidents/?supplier_id=${supplierId}", {
+            
+            const data = await apiFetch(`/api/supplier/${supplierId}/incidents/`, {
                 method: "GET",
                 userId: currentUserId,
             });
 
-            const mapped = (data || []).map(c => ({
+            const mapped = (data || []).map((c) => ({
                 id: c.id,
-                consumer: c.consumer || "",
-                description: c.description || "",
+                consumer: c.consumer_id ? `Consumer #${c.consumer_id}` : "",
+                description: c.message || "",
                 status: c.status,
+                assignedTo: c.assigned_to,
             }));
 
-            setEscalatedComplaints(mapped.filter(c => c.status === "open" || c.status === "escalated"));
-            setResolvedComplaints(mapped.filter(c => c.status === "resolved"));
+            
+            setEscalatedComplaints(mapped.filter((c) => c.status !== "resolved"));
+        
+            setResolvedComplaints(mapped.filter((c) => c.status === "resolved"));
         } catch (err) {
             setError(err.message || "Failed to load complaints");
         }
-
     };
+
 
     const manageLoginSubmit = async (e) => {
         e.preventDefault();
@@ -1114,6 +1152,11 @@ const App = () => {
             } else {
                 role = "consumer";
             }
+            if (role === "sales") {
+            throw new Error(
+                `This email (${formData.email}) belongs to a sales account. Sales must log in via the mobile app, not the web dashboard.`
+            );
+        }
 
             setCurrentUser({
                 id: data.user_id,
@@ -1149,7 +1192,17 @@ const App = () => {
 
     const manageProductUpdate = (e) => {
         const { id, value, files } = e.target;
-        setProductForm(prev => ({ ...prev, [id]: files ? files[0] : value }));
+        if (id === "image") {
+            setProductForm(prev => ({
+                ...prev,
+                image: files && files[0] ? files[0] : null,
+            }));
+        } else {
+            setProductForm(prev => ({
+                ...prev,
+                [id]: value,
+            }));
+        }
     };
 
     const manageAddProduct = async (e) => {
@@ -1159,7 +1212,7 @@ const App = () => {
 
         const file = e.target.files?.[0];
 
-        if (!productForm.productName || !productForm.price || !productForm.stock || !productForm.unit || !file) {
+        if (!productForm.productName || !productForm.price || !productForm.stock || !productForm.unit) {
             setError("Please fill in required fields.");
             return;
         }
@@ -1173,11 +1226,10 @@ const App = () => {
             sku: productForm.productName.toLowerCase().replace(/\s+/g, "-"), // простая автогенерация SKU
             name: productForm.productName,
             description: "",
-            unit_code: productForm.unit, // убедись, что вводишь kg / liter / pack
+            unit_code: productForm.unit, 
             price: productForm.price,
             stock: productForm.stock,
             discount: productForm.discount || 0,
-            image: file,
             delivery_time: null,
         };
 
@@ -1205,8 +1257,8 @@ const App = () => {
                 setSuccessMessage("Product added successfully!");
             }
 
-            // Reset form
-            setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "", image: null });
+         
+            setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "", image: null, });
             setTimeout(() => setSuccessMessage(""), 2000);
         } catch (err) {
             setError(err.message || "Failed to save product");
@@ -1425,33 +1477,32 @@ const App = () => {
         }
     };
 
-    const resolveComplaint = async (id) => {
-        // const complaintToResolve = escalatedComplaints.find(c => c.id == id);
-        // setResolvedComplaints(prev => [...prev, complaintToResolve]);
-        // setEscalatedComplaints(prev => prev.filter(c => c.id !== id));
-        // setMessage("Complaint resolved!");
-        // setTimeout(setMessage(""), 2000);
 
-        if (!currentUser || (currentUser.role !== "manager")) {
+    const resolveComplaint = async (id) => {
+        if ( !currentUser || currentUser.role !== "manager"&& currentUser.role !== "owner") {
             setError("Not authorized");
             return;
         }
 
         try {
-            await apiFetch(`/api/incidents/${id}/resolve/`, {
-                method: "POST",
+             await apiFetch(`/api/incidents/${id}/`, {
+                method: "PATCH",
                 userId,
-            })
+                body: { status: "resolved" },
+            });
+
             await loadComplaints(userId);
+            setMessage("Complaint resolved!");
+            setTimeout(() => setMessage(""), 2000);
         } catch (err) {
             setError(err.message || "Failed to resolve complaint");
         }
     };
 
+  
+   
 
-    /* ------------------------
-       Helpers for views
-       ------------------------ */
+
     const isOwner = currentUser && currentUser.role === "owner";
     const isManager = currentUser && currentUser.role === "manager";
     const isSales = currentUser && currentUser.role === "sales";
@@ -1633,11 +1684,13 @@ const App = () => {
             <div>
                 <ComplaintsView
                     escalatedComplaints={escalatedComplaints}
-                    resolveComplaint={resolveComplaint}
                     resolvedComplaints={resolvedComplaints}
                     complaintViewType={complaintViewType}
                     setComplaintViewType={setComplaintViewType}
                     setView={setView}
+                    isOwner={isOwner}
+                    isManager={isManager}
+                    resolveComplaint={resolveComplaint}
                 />
             </div>
         )

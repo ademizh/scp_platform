@@ -1127,9 +1127,7 @@ class SupplierIncidentListView(APIView):
 
         # 2. Set RLS User (CRITICAL STEP)
         _set_rls_user(int_user_id)
-        incidents = Incidents.objects.filter(supplier_id=supplier_id).order_by('-created_at')
-        # 3. Check permissions (Optional, DB RLS handles it, but good for safety)
-        # Ensure the user actually belongs to this supplier
+        
         is_staff = SupplierStaff.objects.filter(
             user_id=int_user_id, 
             supplier_id=supplier_id, 
@@ -1144,7 +1142,7 @@ class SupplierIncidentListView(APIView):
 
         # 4. Query Incidents
         # We filter by supplier_id explicitly, RLS will further filter by visibility
-        qs = Incidents.objects.filter(supplier_id=supplier_id).order_by('-created_at')
+        incidents = Incidents.objects.filter(supplier_id=supplier_id).order_by('-created_at')
         
         # 5. Serialize
         # You can use a serializer. If you don't have one for listing, create it or reuse
