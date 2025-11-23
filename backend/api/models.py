@@ -249,7 +249,7 @@ class Products(models.Model):
     unit = models.ForeignKey('Units', models.DO_NOTHING)
     is_active = models.BooleanField()
     created_at = models.DateTimeField()
-
+    image_url = models.TextField(blank=True, null=True)
     class Meta:
         managed = False
         db_table = 'products'
@@ -336,3 +336,40 @@ class Users(models.Model):
     class Meta:
         managed = False
         db_table = 'users'
+
+# backend/api/models.py
+
+# ... other models (Users, Products, Orders, etc.) ...
+
+# DELETE the class Complaint(...) entirely!
+
+# KEEP this new class:
+class Incidents(models.Model):
+    id = models.BigAutoField(primary_key=True)
+
+    order = models.ForeignKey(Orders, on_delete=models.CASCADE, related_name="incidents") # Note related_name
+    supplier = models.ForeignKey(Suppliers, on_delete=models.CASCADE)
+    consumer = models.ForeignKey(Consumers, on_delete=models.CASCADE)
+    
+    description = models.TextField()
+    status = models.TextField(default='open') 
+    created_at = models.DateTimeField(default=timezone.now)
+
+    created_by = models.ForeignKey(
+        Users, 
+        on_delete=models.DO_NOTHING, 
+        related_name='created_incidents',
+        db_column='created_by'  # <--- Tells Django the actual column name
+    )
+
+    # 🟢 FIX: Add db_column='assigned_to' (Likely same issue here)
+    assigned_to = models.ForeignKey(
+        Users, 
+        on_delete=models.DO_NOTHING, 
+        null=True, 
+        blank=True,
+        db_column='assigned_to' # <--- Tells Django the actual column name
+    )
+    class Meta:
+        managed = False
+        db_table = 'incidents'

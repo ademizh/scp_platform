@@ -15,6 +15,7 @@ import 'package:flyer_chat_text_message/flyer_chat_text_message.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:pull_down_button/pull_down_button.dart';
 import 'package:uuid/uuid.dart';
+import 'package:intl/intl.dart';
 
 import 'package:mobile/chat/widgets/create_message.dart';
 import 'package:mobile/chat/widgets/composer_action_bar.dart';
@@ -384,8 +385,9 @@ class LocalState extends State<Local> {
     }
   }
 
-  void _handleAttachmentTap() async {
-    await await showDialog(
+void _handleAttachmentTap() async {
+    // 🟢 FIX 2: Removed unnecessary nested 'await await'
+    await showDialog(
       context: context,
       builder: (BuildContext context) {
         return Dialog(
@@ -449,7 +451,6 @@ class LocalState extends State<Local> {
     ),
   ),
 );
-      },
-    );
+      }, );
   }
 }

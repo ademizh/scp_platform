@@ -12,39 +12,39 @@ class SessionService {
   static const _keyConsumerId = 'consumer_id';
   static const _keyLoginRole = 'role';
   static const _keyIsLoggedIn = 'isLoggedIn';
+  static const _keyToken = 'auth_token';
+
 
   /// Save login result after successful login
   Future<void> saveLogin(LoginResult result) async {
-    final prefs = await SharedPreferences.getInstance();
+  final prefs = await SharedPreferences.getInstance();
 
-    // Basic user fields
-    await prefs.setInt(_keyUserId, result.userId);
-    await prefs.setStringList(_keyRoles, result.roles);
+  await prefs.setInt(_keyUserId, result.userId);
+  await prefs.setStringList(_keyRoles, result.roles);
 
-    // Preserve consumer_id only if exists
-    if (result.consumerId != null) {
-      await prefs.setInt(_keyConsumerId, result.consumerId!);
-    } else {
-      await prefs.remove(_keyConsumerId);
-    }
+  if (result.token != null) {
+  await prefs.setString(_keyToken, result.token!);
+}
 
-    // Preserve supplier_id only if exists
-    if (result.supplierId != null) {
-      await prefs.setInt(_keySupplierId, result.supplierId!);
-    } else {
-      await prefs.remove(_keySupplierId);
-    }
-
-    // Store login role (consumer/supplier UI mode)
-    if (result.roles.contains('consumer')) {
-      await prefs.setString(_keyLoginRole, 'consumer');
-    } else if (result.roles.contains('supplier')) {
-      await prefs.setString(_keyLoginRole, 'supplier');
-    }
-
-    // Mark session active
-    await prefs.setBool(_keyIsLoggedIn, true);
+  if (result.consumerId != null) {
+    await prefs.setInt(_keyConsumerId, result.consumerId!);
   }
+
+  if (result.supplierId != null) {
+    await prefs.setInt(_keySupplierId, result.supplierId!);
+  }
+
+  await prefs.setString(_keyLoginRole,
+      result.roles.contains('supplier') ? 'supplier' : 'consumer');
+
+  await prefs.setBool(_keyIsLoggedIn, true);
+}
+
+Future<String?> getToken() async {
+  final prefs = await SharedPreferences.getInstance();
+  return prefs.getString(_keyToken);
+}
+
 
   /// Retrieve user_id from session
   Future<int?> getUserId() async {
@@ -92,5 +92,7 @@ class SessionService {
     await prefs.remove(_keyConsumerId);
     await prefs.remove(_keyLoginRole);
     await prefs.remove(_keyIsLoggedIn);
+    await prefs.remove(_keyToken);
+
   }
 }

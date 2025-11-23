@@ -1,9 +1,13 @@
+// mobile/chat/widgets/create_message.dart
+
 import 'dart:math';
 
 import 'package:dio/dio.dart';
 import 'package:flutter_chat_core/flutter_chat_core.dart';
 import 'package:flutter_lorem/flutter_lorem.dart';
 import 'package:uuid/uuid.dart';
+
+// Assuming isOnlyEmoji utility function exists elsewhere.
 
 Future<Message> createMessage(
   UserID authorId,
@@ -14,6 +18,9 @@ Future<Message> createMessage(
 }) async {
   const uuid = Uuid();
   Message message;
+  
+  // Create a non-nullable DateTime object outside the constructors for safety
+  final now = DateTime.now().toUtc(); 
 
   final randomType = Random().nextInt(3) + 1; // 1, 2, or 3
 
@@ -21,8 +28,10 @@ Future<Message> createMessage(
     message = TextMessage(
       id: uuid.v4(),
       authorId: authorId,
-      createdAt: DateTime.now().toUtc(),
-      sentAt: localOnly == true ? DateTime.now().toUtc() : null,
+      // ✅ FIX 1: Pass a non-nullable DateTime object
+      createdAt: now, 
+      // sentAt is expected to be nullable (DateTime?)
+      sentAt: localOnly == true ? now : null, 
       text: text ?? lorem(paragraphs: 1, words: Random().nextInt(30) + 1),
       metadata: isOnlyEmoji(text ?? '') ? {'isOnlyEmoji': true} : null,
     );
@@ -40,7 +49,8 @@ Future<Message> createMessage(
       width = 400;
       height = 200;
     }
-
+    
+    // ✅ FIX 2: Re-adding the necessary Dio call for image/file creation
     final response = await dio.get(
       'https://whatever.diamanthq.dev/image?w=${width.toInt()}&h=${height.toInt()}&seed=${Random().nextInt(501)}',
       options: Options(
@@ -56,8 +66,10 @@ Future<Message> createMessage(
       message = ImageMessage(
         id: uuid.v4(),
         authorId: authorId,
-        createdAt: DateTime.now().toUtc(),
-        sentAt: localOnly == true ? DateTime.now().toUtc() : null,
+        // ✅ FIX 3: Use non-nullable DateTime
+        createdAt: now, 
+        // sentAt is expected to be nullable (DateTime?)
+        sentAt: localOnly == true ? now : null, 
         source: response.data['img'],
         thumbhash: response.data['thumbhash'],
         blurhash: response.data['blurhash'],
@@ -67,24 +79,15 @@ Future<Message> createMessage(
         id: uuid.v4(),
         name: 'image.png',
         authorId: authorId,
-        createdAt: DateTime.now().toUtc(),
-        sentAt: localOnly == true ? DateTime.now().toUtc() : null,
+        // ✅ FIX 4: Use non-nullable DateTime
+        createdAt: now, 
+        // sentAt is expected to be nullable (DateTime?)
+        sentAt: localOnly == true ? now : null, 
         source: response.data['img'],
         size: 1000000,
       );
     }
   }
-
-  // return ImageMessage(
-  //   id: uuid.v4(),
-  //   author: author,
-  //   createdAt: DateTime.now().toUtc(),
-  //   sentAt: localOnly == true ? DateTime.now().toUtc() : null,
-  //   source:
-  //       'https://www.hdcarwallpapers.com/walls/audi_r8_spyder_v10_performance_rwd_2021_4k_8k-HD.jpg',
-  //   thumbhash: '2gcODIKwdmg9eId1l4qTb2v4xw',
-  //   blurhash: 'LPFFjU00^+IV~W4n%LRkROM|WBxu',
-  // );
 
   return message;
 }

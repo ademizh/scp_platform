@@ -3,6 +3,10 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
+import 'package:mobile/services/session.dart';
+
+
+
 // Base URLs for different platforms
 const String _webBaseUrl = 'http://127.0.0.1:8000';
 const String _androidEmuBaseUrl = 'http://10.0.2.2:8000';
@@ -17,12 +21,16 @@ class LoginResult {
   final List<String> roles;
   final int? supplierId;
   final int? consumerId;
+  final String? token; 
+
 
   LoginResult({
     required this.userId,
     required this.roles,
     this.supplierId,
     this.consumerId,
+    required this.token,
+
   });
 
   factory LoginResult.fromJson(Map<String, dynamic> json) {
@@ -31,6 +39,7 @@ class LoginResult {
       roles: (json['roles'] as List<dynamic>).map((e) => e.toString()).toList(),
       supplierId: json['supplier_id'] as int?,
       consumerId: json['consumer_id'] as int?,
+      token: json['token'],
     );
   }
 }
@@ -115,6 +124,7 @@ class Product {
   final double stock;
   final double discount; // percent
   final int? deliveryTime; // minutes
+  final String? imageUrl; 
 
   Product({
     required this.id,
@@ -127,6 +137,7 @@ class Product {
     required this.stock,
     required this.discount,
     required this.deliveryTime,
+    this.imageUrl,
   });
 
   factory Product.fromJson(Map<String, dynamic> json) {
@@ -141,6 +152,7 @@ class Product {
       stock: _asDouble(json['stock'] as num),
       discount: _asDouble(json['discount'] as num?),
       deliveryTime: json['delivery_time'] as int?,
+      imageUrl: json['image_url'], 
     );
   }
 }
@@ -207,7 +219,8 @@ class Incident {
   final String message;
   final String status;
   final DateTime createdAt;
-
+  final int createdBy;
+  final int? assignedTo;
   Incident({
     required this.id,
     required this.orderId,
@@ -216,17 +229,27 @@ class Incident {
     required this.message,
     required this.status,
     required this.createdAt,
+    required this.createdBy,
+    this.assignedTo,
   });
 
   factory Incident.fromJson(Map<String, dynamic> json) {
     return Incident(
-      id: json['id'],
-      orderId: json['order'],
-      consumerId: json['consumer'],
-      supplierId: json['supplier'],
-      message: json['message'],
-      status: json['status'],
+      id: json['id'] as int,
+      
+  
+      orderId: json['order_id'] as int, 
+      
+      consumerId: json['consumer_id'] as int, 
+      
+      supplierId: json['supplier_id'] as int, 
+      
+      message: json['message'] ?? "",
+      status: json['status'] as String,
       createdAt: DateTime.parse(json['created_at']),
+      createdBy: json['created_by'] as int, 
+      
+      assignedTo: json['assigned_to'],
     );
   }
 }
@@ -294,58 +317,107 @@ factory Order.fromJson(Map<String, dynamic> json) {
 class ApiClient {
   ApiClient._();
   static final ApiClient instance = ApiClient._();
-  //static const String baseUrl = "http://YOUR_SERVER/api";
+  
+
+  /// Helper to generate authenticated headers
+  Future<Map<String, String>> _getAuthHeaders({String contentType = 'application/json'}) async {
+    final token = await SessionService.instance.getToken();
+    final headers = <String, String>{};
+    if (contentType.isNotEmpty) {
+      headers['Content-Type'] = contentType;
+    }
+    if (token != null) {
+      headers['Authorization'] = 'Token $token';
+    } else {
+      debugPrint("Warning: Authentication token is missing.");
+    }
+    return headers;
+  }
 
   // CREATE complaint (consumer)
-Future<Incident?> createIncident(int orderId, String message) async {
-  final response = await http.post(
-    Uri.parse('$_baseUrl/incidents/'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({
-      'order': orderId,
-      'message': message,
-    }),
-  );
+  Future<bool> createIncident({
+    required int userId,
+    required int orderId,
+    required String message,
+  }) async {
+    // headers: X-User-Id is what Django uses
+    final headers = await _getAuthHeaders();
+    headers['X-User-Id'] = '$userId';
 
-  if (response.statusCode == 201) {
-    return Incident.fromJson(jsonDecode(response.body));
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/incidents/'),
+      headers: headers,
+      body: jsonEncode({
+        'order_id': orderId,  // snake_case matches ComplaintCreateSerializer
+        'message': message,
+      }),
+    );
+
+    // for debug
+    debugPrint('📨 createIncident -> ${response.statusCode} ${response.body}');
+
+    if (response.statusCode != 201) {
+      debugPrint('Failed to submit incident: ${response.body}');
+    }
+    return response.statusCode == 201;
   }
-  return null;
-}
 
-// GET supplier incidents
-Future<List<Incident>> getSupplierIncidents(int supplierId) async {
-  final response = await http.get(
-    Uri.parse('$_baseUrl/supplier/$supplierId/incidents/'),
-  );
 
-  if (response.statusCode == 200) {
-    final data = jsonDecode(response.body) as List;
-    return data.map((e) => Incident.fromJson(e)).toList();
+  // GET supplier incidents
+  Future<List<Incident>> getSupplierIncidents(int userId, int supplierId) async {
+    // 🟢 FIX 1: Add authentication token to headers
+    final headers = await _getAuthHeaders(); 
+    headers['X-User-Id'] = userId.toString();
+    final response = await http.get(
+      // 🟢 FIX 2: Corrected URL to include '/api/' prefix
+      Uri.parse('$_baseUrl/api/supplier/$supplierId/incidents/'), 
+      headers: headers,
+    );
+
+    if (response.statusCode == 200) {
+      final List<dynamic> data = jsonDecode(utf8.decode(response.bodyBytes));
+      return data.map((json) => Incident.fromJson(json)).toList();
+    } else {
+      // Optional: Print error to see why it fails next time
+      print("Request failed: ${response.body}");
+      return [];
+    }
   }
-  return [];
-}
 
-// UPDATE status
-Future<bool> updateIncidentStatus(int id, String status) async {
-  final response = await http.patch(
-    Uri.parse('$_baseUrl/incidents/$id/status/'),
-    headers: {'Content-Type': 'application/json'},
-    body: jsonEncode({'status': status}),
-  );
+  // UPDATE status
+Future<bool> updateIncidentStatus(int userId, int incidentId, String newStatus) async {
+    final headers = await _getAuthHeaders();
+    headers['X-User-Id'] = userId.toString();
+    final response = await http.patch( // <--- Must be PATCH
+      Uri.parse('$_baseUrl/api/incidents/$incidentId/'),
+      headers: headers,
+      body: jsonEncode({'status': newStatus}),
+    );
+    if (response.statusCode != 200) {
+      print("Failed to update: ${response.body}");
+    }
+    return response.statusCode == 200;
+  }
 
-  return response.statusCode == 200;
-}
+  // ESCALATE
+// ESCALATE (Updated)
+  Future<bool> escalateIncident(int userId, int id) async {
+    final headers = await _getAuthHeaders();
+    
+    // 🟢 FIX: Add User ID Header
+    headers['X-User-Id'] = userId.toString();
 
-// ESCALATE
-Future<bool> escalateIncident(int id) async {
-  final response = await http.post(
-    Uri.parse('$_baseUrl/incidents/$id/escalate/'),
-  );
-  return response.statusCode == 200;
-}
-
-
+    final response = await http.post(
+      Uri.parse('$_baseUrl/api/incidents/$id/escalate/'),
+      headers: headers,
+    );
+    
+    if (response.statusCode != 200) {
+        print("Escalation failed: ${response.body}");
+    }
+    
+    return response.statusCode == 200;
+  }
 
   // -------- Auth --------
 
@@ -674,8 +746,27 @@ Future<List<Order>> getConsumerOrders({
         .map((e) => SupplierInfo.fromJson(e as Map<String, dynamic>))
         .toList();
   }
-  
+  // GET consumer incidents
+Future<List<Incident>> getConsumerIncidents() async {
+  final headers = await _getAuthHeaders(contentType: '');
+  final userId = await SessionService.instance.getUserId();
+  if (userId != null) {
+      headers['X-User-Id'] = userId.toString();
+    }
+  final response = await http.get(
+    Uri.parse('$_baseUrl/api/my-incidents/'),
+    headers: headers,
+  );
+
+  if (response.statusCode == 200) {
+      // Decode UTF8 to handle special characters correctly
+      final data = jsonDecode(utf8.decode(response.bodyBytes)) as List;
+      return data.map((e) => Incident.fromJson(e)).toList();
+    } else {
+      print("Failed to load consumer incidents: ${response.body}");
+      return [];
+    }
 }
 
-
-
+  
+}
