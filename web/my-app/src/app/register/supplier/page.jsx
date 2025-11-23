@@ -378,6 +378,12 @@ const CatalogView = ({
                     </div>
                 </div>
 
+                <div>
+                    <label htmlFor="image" className="block text-sm font-medium text-gray-700">Image</label>
+                    <input id="image" type="file" accept="image/*" className="w-full border border-gray-400 p-2 text-gray-900"
+                            onChange={manageProductUpdate}/>
+                </div>
+
                 <button type="submit" className="w-full bg-gray-700 text-white py-2 hover:bg-gray-600 transition duration-150">
                     <Package className="h-4 w-4 mr-2 inline" /> {editingProductId ? "Update Product" : "Add Product"}
                 </button>
@@ -397,6 +403,7 @@ const CatalogView = ({
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Discount</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Stock</th>
                             <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Unit</th>
+                            <th className="px-4 py-2 text-left text-xs font-medium text-gray-700 uppercase">Image</th>
                             <th className="px-4 py-2 text-center text-xs font-medium text-gray-700 uppercase">Actions</th>
                         </tr>
                     </thead>
@@ -409,6 +416,20 @@ const CatalogView = ({
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.discount}%</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.stock}</td>
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">{product.unit}</td>
+                                <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
+                                    <td className="px-4 py-3 whitespace-nowrap text-sm">
+                                        {product.image ? (
+                                            <img 
+                                                src={product.image} 
+                                                alt={product.name} 
+                                                className="h-12 w-12 object-cover border border-gray-300 rounded"
+                                            />
+                                        ) : (
+                                            <span className="text-gray-400 text-xs">No image</span>
+                                        )}
+                                    </td>
+
+                                </td>
                                 <td className="px-4 py-3 whitespace-nowrap text-center text-sm">
                                     {/* Only Owner & Manager can edit/delete products; UI shown only when user is allowed */}
                                     <button onClick={() => enterEditMode(product)} className="text-gray-700 hover:text-gray-900 text-xs mr-2 border border-gray-700 px-2 py-1">Edit</button>
@@ -1127,8 +1148,8 @@ const App = () => {
     };
 
     const manageProductUpdate = (e) => {
-        const { id, value } = e.target;
-        setProductForm(prev => ({ ...prev, [id]: value }));
+        const { id, value, files } = e.target;
+        setProductForm(prev => ({ ...prev, [id]: files ? files[0] : value }));
     };
 
     const manageAddProduct = async (e) => {
@@ -1136,7 +1157,9 @@ const App = () => {
         setError("");
         setSuccessMessage("");
 
-        if (!productForm.productName || !productForm.price || !productForm.stock || !productForm.unit) {
+        const file = e.target.files?.[0];
+
+        if (!productForm.productName || !productForm.price || !productForm.stock || !productForm.unit || !file) {
             setError("Please fill in required fields.");
             return;
         }
@@ -1154,6 +1177,7 @@ const App = () => {
             price: productForm.price,
             stock: productForm.stock,
             discount: productForm.discount || 0,
+            image: file,
             delivery_time: null,
         };
 
@@ -1182,7 +1206,7 @@ const App = () => {
             }
 
             // Reset form
-            setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "" });
+            setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "", image: null });
             setTimeout(() => setSuccessMessage(""), 2000);
         } catch (err) {
             setError(err.message || "Failed to save product");
