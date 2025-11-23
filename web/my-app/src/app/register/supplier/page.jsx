@@ -11,7 +11,7 @@ async function apiFetch(path, { method = "GET", body, userId } = {}) {
     };
 
     if (userId) {
-        headers["X-User-Id"] = String(userId); // для RLS в Products / Orders
+        headers["X-User-Id"] = String(userId);
     }
 
     const res = await fetch(`${API_BASE_URL}${path}`, {
@@ -151,7 +151,6 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2 text-center">Actions</th>
                         </tr>
@@ -161,7 +160,6 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                                 <td className="px-4 py-2 text-center space-x-2">
                                     <button onClick={() => acceptRequest(req.id)} className="px-2 py-1 border border-green-700 text-green-700 hover:bg-green-100 text-xs">Accept</button>
@@ -183,7 +181,6 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                         </tr>
                     </thead>
@@ -192,7 +189,6 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                             </tr>
                         ))}
@@ -210,7 +206,6 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                         </tr>
                     </thead>
@@ -219,7 +214,6 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                             </tr>
                         ))}
@@ -236,7 +230,6 @@ const RequestsView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                         </tr>
                     </thead>
@@ -245,7 +238,6 @@ const RequestsView = ({
                             <tr key={req.id}>
                                 <td className="px-4 py-2">{req.id}</td>
                                 <td className="px-4 py-2">{req.name}</td>
-                                {/* <td className="px-4 py-2">{req.email}</td> */}
                                 <td className="px-4 py-2">{req.date}</td>
                             </tr>
                         ))}
@@ -279,8 +271,8 @@ const CatalogView = ({
     goToUserManagement,
     goToOrders,
     goToRequests,
-    goToComplaints, 
-    error,  
+    goToComplaints,
+    error,
 }) => (
     <div className="p-6 border border-gray-400 bg-white w-full max-w-4xl mx-auto">
         <div className="flex items-center justify-between mb-6 border-b pb-3">
@@ -365,7 +357,7 @@ const CatalogView = ({
                 <div>
                     <label htmlFor="image" className="block text-sm font-medium text-gray-700">Image</label>
                     <input id="image" type="file" accept="image/*" className="w-full border border-gray-400 p-2 text-gray-900"
-                            onChange={manageProductUpdate}/>
+                        onChange={manageProductUpdate} />
                 </div>
 
                 <button type="submit" className="w-full bg-gray-700 text-white py-2 hover:bg-gray-600 transition duration-150">
@@ -402,9 +394,9 @@ const CatalogView = ({
                                 <td className="px-4 py-3 whitespace-nowrap text-sm text-gray-600">
                                     <td className="px-4 py-3 whitespace-nowrap text-sm">
                                         {product.image ? (
-                                            <img 
-                                                src={product.image} 
-                                                alt={product.name} 
+                                            <img
+                                                src={product.image}
+                                                alt={product.name}
                                                 className="h-12 w-12 object-cover border border-gray-300 rounded"
                                             />
                                         ) : (
@@ -560,7 +552,6 @@ const OrderView = ({
                         <tr>
                             <th className="px-4 py-2">Order ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Products</th>
                             <th className="px-4 py-2">Total Amount</th>
@@ -572,7 +563,6 @@ const OrderView = ({
                             <tr key={order.id}>
                                 <td className="px-4 py-2">{order.id}</td>
                                 <td className="px-4 py-2">{order.consumerName}</td>
-                                {/* <td className="px-4 py-2">{order.email}</td> */}
                                 <td className="px-4 py-2">{order.date}</td>
                                 <td className="px-4 py-2">{
                                     order.products.map(prod => `${prod.name} - ${prod.units} units`)
@@ -615,7 +605,6 @@ const OrderView = ({
                         <tr>
                             <th className="px-4 py-2">Order ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Products</th>
                             <th className="px-4 py-2">Total Amount</th>
@@ -627,12 +616,11 @@ const OrderView = ({
                             <tr key={order.id}>
                                 <td className="px-4 py-2">{order.id}</td>
                                 <td className="px-4 py-2">{order.consumerName}</td>
-                                {/* <td className="px-4 py-2">{order.email}</td> */}
                                 <td className="px-4 py-2">{order.date}</td>
                                 <td className="px-4 py-2 whitespace-pre-line">
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
                                 </td>
-                                 <td className="px-4 py-2">
+                                <td className="px-4 py-2">
                                     {`$${order.totalAmount.toFixed(2)}`}
                                 </td>
 
@@ -668,7 +656,6 @@ const OrderView = ({
                         <tr>
                             <th className="px-4 py-2">ID</th>
                             <th className="px-4 py-2">Consumer Name</th>
-                            {/* <th className="px-4 py-2">Email</th> */}
                             <th className="px-4 py-2">Date</th>
                             <th className="px-4 py-2">Products</th>
                             <th className="px-4 py-2">Total Amount</th>
@@ -680,12 +667,11 @@ const OrderView = ({
                             <tr key={order.id}>
                                 <td className="px-4 py-2">{order.id}</td>
                                 <td className="px-4 py-2">{order.consumerName}</td>
-                                {/* <td className="px-4 py-2">{order.email}</td> */}
                                 <td className="px-4 py-2">{order.date}</td>
                                 <td className="px-4 py-2 whitespace-pre-line">
                                     {order.products.map(p => `${p.name} — ${p.units} units`).join("\n")}
                                 </td>
-                                 <td className="px-4 py-2">
+                                <td className="px-4 py-2">
                                     {`$${order.totalAmount.toFixed(2)}`}
                                 </td>
 
@@ -728,7 +714,7 @@ const ComplaintsView = ({
 }) => (
     <div className="min-h-screen bg-gray-700 p-8">
         <div className="p-6 border min-h-[90vh] border-gray-400 bg-white w-full max-w-4xl mx-auto">
- 
+
             <div className="flex items-center justify-between mb-6 border-b pb-3">
                 <h1 className="text-2xl font-bold text-gray-800">Complaints</h1>
                 <button
@@ -742,21 +728,19 @@ const ComplaintsView = ({
             <div className="flex space-x-4 mb-6">
                 <button
                     onClick={() => setComplaintViewType("escalated")}
-                    className={`px-4 py-2 border rounded ${
-                        complaintViewType === "escalated"
-                            ? "bg-gray-700 text-white border-gray-700"
-                            : "bg-white text-gray-700 border-gray-400"
-                    }`}
+                    className={`px-4 py-2 border rounded ${complaintViewType === "escalated"
+                        ? "bg-gray-700 text-white border-gray-700"
+                        : "bg-white text-gray-700 border-gray-400"
+                        }`}
                 >
                     Escalated / Open
                 </button>
                 <button
                     onClick={() => setComplaintViewType("resolved")}
-                    className={`px-4 py-2 border rounded ${
-                        complaintViewType === "resolved"
-                            ? "bg-gray-700 text-white border-gray-700"
-                            : "bg-white text-gray-700 border-gray-400"
-                    }`}
+                    className={`px-4 py-2 border rounded ${complaintViewType === "resolved"
+                        ? "bg-gray-700 text-white border-gray-700"
+                        : "bg-white text-gray-700 border-gray-400"
+                        }`}
                 >
                     Resolved
                 </button>
@@ -783,15 +767,15 @@ const ComplaintsView = ({
                                     <td className="px-4 py-2">{c.description}</td>
                                     <td className="px-4 py-2 space-x-2">
 
-                                            {(isOwner || isManager) && c.status !== "resolved" && (
-                                                <button
-                                                    onClick={() => resolveComplaint(c.id)}
-                                                    className="px-2 py-1 border border-green-700 text-green-700 rounded hover:bg-green-100 text-xs"
-                                                >
-                                                    Resolve
-                                                </button>
-                                            )}
-                                        </td>
+                                        {(isOwner || isManager) && c.status !== "resolved" && (
+                                            <button
+                                                onClick={() => resolveComplaint(c.id)}
+                                                className="px-2 py-1 border border-green-700 text-green-700 rounded hover:bg-green-100 text-xs"
+                                            >
+                                                Resolve
+                                            </button>
+                                        )}
+                                    </td>
 
                                 </tr>
                             ))}
@@ -806,7 +790,7 @@ const ComplaintsView = ({
                 </div>
             )}
 
-            
+
             {complaintViewType === "resolved" && (
                 <div className="border border-gray-400 rounded">
                     <table className="min-w-full divide-y divide-gray-300">
@@ -844,11 +828,11 @@ const App = () => {
     const [userId, setUserId] = useState(null);
     const [supplierId, setSupplierId] = useState(null);
 
-   
+
     const [productForm, setProductForm] = useState({ productName: "", price: "", discount: "", stock: "", unit: "" });
     const [editingProductId, setEditingProductId] = useState(null);
 
- 
+
     const [error, setError] = useState("");
     const [message, setMessage] = useState("");
     const [successMessage, setSuccessMessage] = useState("");
@@ -856,15 +840,15 @@ const App = () => {
 
 
     const [isAuthenticated, setIsAuthenticated] = useState(false);
-    const [currentUser, setCurrentUser] = useState(null); 
+    const [currentUser, setCurrentUser] = useState(null);
     const [supplierActive, setSupplierActive] = useState(true);
 
     const [productList, setProductList] = useState([]);
 
- 
-    const [users, setUsers] = useState([]); 
 
-  
+    const [users, setUsers] = useState([]);
+
+
     const [pendingRequests, setPendingRequests] = useState([]);
     const [acceptedRequests, setAcceptedRequests] = useState([]);
     const [rejectedRequests, setRejectedRequests] = useState([]);
@@ -872,7 +856,7 @@ const App = () => {
 
     const [requestViewType, setRequestViewType] = useState("pending");
 
-  
+
 
     const [pendingOrders, setPendingOrders] = useState([]);
     const [acceptedOrders, setAcceptedOrders] = useState([]);
@@ -889,7 +873,7 @@ const App = () => {
 
     const nextId = (list) => (list && list.length ? Math.max(...list.map(x => x.id)) + 1 : 1);
 
- 
+
     const manageChange = (e) => {
         const { id, value } = e.target;
         setFormData(prev => ({ ...prev, [id]: value }));
@@ -930,7 +914,7 @@ const App = () => {
             const payload = {
                 email: formData.email,
                 password: formData.password,
-                full_name: formData.supplierName,    
+                full_name: formData.supplierName,
                 supplier_name: formData.supplierName,
             };
 
@@ -983,14 +967,14 @@ const App = () => {
                 id: row.id,
                 consumerId: row.consumer_id,
                 name: row.consumer_name,
-                email: row.consumer_email || "", 
+                email: row.consumer_email || "",
                 date: row.created_at ? new Date(row.created_at).toLocaleString() : "",
                 status: row.status,
             }));
 
             setPendingRequests(normalized.filter((r) => r.status === "pending"));
             setAcceptedRequests(normalized.filter((r) => r.status === "accepted"));
-            
+
             setRejectedRequests(
                 normalized.filter((r) => r.status === "removed" || r.status === "rejected")
             );
@@ -1000,7 +984,7 @@ const App = () => {
         }
     };
 
-    
+
     const loadSupplierOrders = async (currentUserId) => {
         try {
             const data = await apiFetch("/api/orders/?role=supplier", {
@@ -1047,7 +1031,7 @@ const App = () => {
         } catch (err) {
             setError(err.message || "Failed to load staff");
         }
-        };
+    };
 
     const loadComplaints = async (currentUserId) => {
         if (!supplierId) {
@@ -1056,7 +1040,7 @@ const App = () => {
         }
 
         try {
-            
+
             const data = await apiFetch(`/api/supplier/${supplierId}/incidents/`, {
                 method: "GET",
                 userId: currentUserId,
@@ -1070,9 +1054,9 @@ const App = () => {
                 assignedTo: c.assigned_to,
             }));
 
-            
+
             setEscalatedComplaints(mapped.filter((c) => c.status !== "resolved"));
-        
+
             setResolvedComplaints(mapped.filter((c) => c.status === "resolved"));
         } catch (err) {
             setError(err.message || "Failed to load complaints");
@@ -1120,10 +1104,10 @@ const App = () => {
                 role = "consumer";
             }
             if (role === "sales") {
-            throw new Error(
-                `This email (${formData.email}) belongs to a sales account. Sales must log in via the mobile app, not the web dashboard.`
-            );
-        }
+                throw new Error(
+                    `This email (${formData.email}) belongs to a sales account. Sales must log in via the mobile app, not the web dashboard.`
+                );
+            }
 
             setCurrentUser({
                 id: data.user_id,
@@ -1186,10 +1170,10 @@ const App = () => {
         }
 
         const payload = {
-            sku: productForm.productName.toLowerCase().replace(/\s+/g, "-"), // простая автогенерация SKU
+            sku: productForm.productName.toLowerCase().replace(/\s+/g, "-"),
             name: productForm.productName,
             description: "",
-            unit_code: productForm.unit, 
+            unit_code: productForm.unit,
             price: productForm.price,
             stock: productForm.stock,
             discount: productForm.discount || 0,
@@ -1218,7 +1202,7 @@ const App = () => {
                 setSuccessMessage("Product added successfully!");
             }
 
-         
+
             setProductForm({ productName: "", price: "", discount: "", stock: "", unit: "", image: null, });
             setTimeout(() => setSuccessMessage(""), 2000);
         } catch (err) {
@@ -1433,13 +1417,13 @@ const App = () => {
 
 
     const resolveComplaint = async (id) => {
-        if ( !currentUser || currentUser.role !== "manager"&& currentUser.role !== "owner") {
+        if (!currentUser || currentUser.role !== "manager" && currentUser.role !== "owner") {
             setError("Not authorized");
             return;
         }
 
         try {
-             await apiFetch(`/api/incidents/${id}/`, {
+            await apiFetch(`/api/incidents/${id}/`, {
                 method: "PATCH",
                 userId,
                 body: { status: "resolved" },
@@ -1453,8 +1437,8 @@ const App = () => {
         }
     };
 
-  
-   
+
+
 
 
     const isOwner = currentUser && currentUser.role === "owner";
@@ -1507,7 +1491,7 @@ const App = () => {
 
     if (isAuthenticated && view === "requests") {
         if (!isOwner && !isManager) {
-            
+
             setView("dashboard");
             setError("Only Owner and Manager can view requests.");
         } else {
@@ -1518,13 +1502,13 @@ const App = () => {
                         acceptedRequests={acceptedRequests}
                         rejectedRequests={rejectedRequests}
                         blockedRequests={blockedRequests}
-                        
+
                         requestViewType={requestViewType}
                         setRequestViewType={setRequestViewType}
                         acceptRequest={acceptRequest}
                         rejectRequest={rejectRequest}
                         blockRequest={blockRequest}
-                       
+
                         setView={setView}
                     />
                 </div>
@@ -1557,7 +1541,7 @@ const App = () => {
         }
     }
 
-    // Catalog dashboard: Owner & Manager can use; Sales may log in but shouldn't edit (we allow view but actions are guarded)
+    // Catalog dashboard: Owner & Manager can use;
     if (isAuthenticated && view === "dashboard") {
         // if supplier is inactive, redirect to registration
         if (!supplierActive) {
@@ -1566,7 +1550,6 @@ const App = () => {
             setView("register");
             setMessage("Supplier account inactive.");
         } else {
-            // sales rep cant see catalog
             if (isManager || isOwner) {
                 return (
                     <div className="min-h-screen bg-gray-700 p-8 flex justify-center">
@@ -1598,7 +1581,7 @@ const App = () => {
                             goToRequests={goToRequests}
                             goToOrders={goToOrders}
                             goToComplaints={goToComplaints}
-                            error={error} 
+                            error={error}
                         />
                     </div>
                 );
