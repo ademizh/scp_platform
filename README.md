@@ -2,15 +2,14 @@
 
 This repository contains the source code for the **Supplier Consumer Platform (SCP)**, a B2B web and mobile application designed to streamline collaboration between food suppliers and institutional consumers (restaurants and hotels).
 
-## 📂 Project Structure
+## Project Structure
 
 - **`backend/`** – Django backend: API logic, business rules, and PostgreSQL database configuration.
 - **`mobile/`** – Flutter mobile application for **Sales Representatives** and **Consumers**.
 - **`web/my-app/`** – React web frontend for **Owners** and **Managers** (supplier-side web application).
 
----
 
-## 🛠 Prerequisites
+## Prerequisites
 
 Before you begin, ensure the following are installed:
 
@@ -20,9 +19,7 @@ Before you begin, ensure the following are installed:
 - **Node.js** and **npm** (for the React web frontend)
 - Required Python / Django / Flutter / React packages
 
----
-
-## ⚙️ Step 1: Database Configuration
+## Step 1: Database Configuration
 
 You must create the database and configure the connection settings before running the backend.
 
